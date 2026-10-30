@@ -1,0 +1,129 @@
+/* ───────────── Shared base (tokens, reset, focus). Child-app styles live in kid.css, dashboard in admin/admin.css. ───────────── */
+/* ───────────── Design tokens (light only) ───────────── */
+:root {
+  color-scheme: light only;
+  --font: var(--font-main), system-ui, sans-serif;
+
+  /* كلمات قرآنية: parchment light background, deep Quran blue, golden letter tiles. */
+  --bg: #f8f4e9;
+  --ink: #13294b;
+  --ink-soft: #3a4f73;
+  --muted: #74819b;
+  --line: #e9e2cd;
+  --card: #ffffff;
+
+  --primary: #1f63c6;
+  --primary-2: #3c83e2;
+  --primary-deep: #123f85;
+  --sky: #0f9a91;
+  --sky-deep: #0a6f69;
+  --grape: #7b4bb7;
+  --mint: #2e9e5b;
+  --mint-deep: #1d7541;
+  --gold: #f6c23b;
+  --gold-deep: #b98108;
+  --danger: #d93a49;
+
+  --tile-face: linear-gradient(180deg, #fff3b8 0%, #f7c843 100%);
+  --tile-edge: #c4870a;
+  --tile-ink: #4f2d00;
+
+  --radius: 22px;
+  --radius-sm: 14px;
+  --shadow: 0 10px 30px -12px rgba(19, 41, 75, 0.25);
+  --shadow-lg: 0 24px 50px -20px rgba(19, 41, 75, 0.35);
+  --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%2313294b' stroke-opacity='.055' stroke-width='1.3'%3E%3Crect x='18' y='18' width='36' height='36'/%3E%3Crect x='18' y='18' width='36' height='36' transform='rotate(45 36 36)'/%3E%3Ccircle cx='36' cy='36' r='7'/%3E%3C/g%3E%3C/svg%3E");
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font);
+  color: var(--ink);
+  background:
+    radial-gradient(600px 300px at 110% -5%, #fde7a6 0%, transparent 60%),
+    radial-gradient(500px 320px at -10% 10%, #d6e6fb 0%, transparent 60%),
+    radial-gradient(700px 400px at 50% 110%, #e6f1ec 0%, transparent 60%),
+    var(--pattern),
+    var(--bg);
+  background-attachment: fixed;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Logo used by the dashboard (the child app has its own in kid.css). */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: clamp(1.05rem, 4.8vw, 1.35rem);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  color: var(--tile-ink);
+  font-size: 1.35rem;
+  font-weight: 800;
+  background: var(--tile-face);
+  box-shadow: 0 4px 0 var(--tile-edge), inset 0 2px 0 #fff;
+  transform: rotate(-6deg);
+}

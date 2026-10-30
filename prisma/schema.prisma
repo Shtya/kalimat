@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+/// Question/game type of a level. New game modes are added here and
+/// get their own player component + scoring strategy.
+enum LevelType {
+  WORD_BUILD // عجلة الحروف: كوّن الكلمة من حروف على دائرة
+  WORD_SEARCH // شبكة حروف: ابحث عن كلمات المرحلة داخل مربع
+  MATCH // توصيل: صِل كل كلمة بمعناها
+  MISSING_LETTER // أكمل الكلمة: اختر الحرف الناقص
+}
+
+/// The student's age track (replaces school grades).
+enum AgeTrack {
+  CHILD // الطفولة ٧–١١
+  YOUTH // النشء والشباب ١٢–١٨
+}
+
+/// Which track a level is meant for.
+enum Audience {
+  ALL
+  CHILD
+  YOUTH
+}
+
+/// What a question measures — drives the knowledge reports.
+enum KnowledgeKind {
+  MEANING // معنى مفردة قرآنية
+  STORY // قصة وشخصيات
+  VALUE // قيمة وسلوك
+  THEME // مقصد السورة وموضوعها
+  FACT // معلومة عن السورة
+}
+
+/// المحطة — one of the 6 big levels of the curriculum (a year each).
+model Station {
+  id        String        @id @default(cuid())
+  order     Int           @unique
+  title     String
+  goal      String
+  icon      String        @default("📖")
+  color     String        @default("#1F6FC5")
+  status    PublishStatus @default(PUBLISHED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  stages    Stage[]
+}
+
+/// المرحلة — 24 in total, 4 per station; each covers a group of surahs.
+model Stage {
+  id           String        @id @default(cuid())
+  stationId    String
+  /// 1–24 across the whole curriculum (the number used in the Excel sheet).
+  number       Int           @unique
+  title        String
+  /// العنقود القيمي
+  valueCluster String
+  status       PublishStatus @default(PUBLISHED)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  station      Station       @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  surahs       StageSurah[]
+  levels       Level[]
+
+  @@index([stationId, number])
+}
+
+/// The 114 surahs (fixed reference data).
+model Surah {
+  number    Int          @id
+  name      String
+  ayahCount Int
+  stages    StageSurah[]
+  levels    Level[]
+  words     Word[]
+}
+
+/// Which surahs a stage covers; an ayah range when a surah is split (البقرة).
+model StageSurah {
+  stageId     String
+  surahNumber Int
+  order       Int
+  fromAyah    Int?
+  toAyah      Int?
+  stage       Stage  @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  surah       Surah  @relation(fields: [surahNumber], references: [number])
+
+  @@id([stageId, surahNumber])
+  @@index([surahNumber])
+}
+
+/// مستوى لعب — a playable round inside a stage (usually one surah or part of one).
+model Level {
+  id          String        @id @default(cuid())
+  stageId     String
+  /// Main surah of the level (optional when it mixes short surahs).
+  surahNumber Int?
+  title       String
+  order       Int
+  type        LevelType     @default(WORD_BUILD)
+  difficulty  Difficulty    @default(EASY)
+  audience    Audience      @default(ALL)
+  status      PublishStatus @default(DRAFT)
+  /// Extra per-type settings (e.g. distractor letters count) without schema changes.
+  config      Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  stage       Stage         @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  surah       Surah?        @relation(fields: [surahNumber], references: [number])
+  words       Word[]
+  progress    Progress[]
+  results     ItemResult[]
+
+  @@unique([stageId, order])
+  @@index([stageId, status, order])
+}
+
+/// A question: the answer word + its clue + what the child learns after solving it.
+model Word {
+  id          String        @id @default(cuid())
+  levelId     String
+  /// Answer in standard spelling (what the child builds).
+  text        String
+  hint        String
+  fact        String
+  kind        KnowledgeKind @default(MEANING)
+  surahNumber Int?
+  ayah        Int?
+  /// Optional verse/word in Uthmani script, shown on the fact card.
+  quranText   String?
+  order       Int
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  level       Level         @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  surah       Surah?        @relation(fields: [surahNumber], references: [number])
+  results     ItemResult[]
+
+  @@index([levelId, order])
+  @@index([surahNumber])
+}
+
+model Student {
+  id           String       @id @default(cuid())
+  name         String
+  track        AgeTrack
+  anonymousId  String       @unique
+  /// Optional recovery contact. Nulls stay unique-safe so many students can skip this.
+  phone        String?      @unique
+  email        String?      @unique
+  createdAt    DateTime     @default(now())
+  lastActiveAt DateTime     @default(now())
+  progress     Progress[]
+  results      ItemResult[]
+
+  @@index([track, lastActiveAt])
+  @@index([lastActiveAt])
+  @@index([name])
+}
+
+model Progress {
+  id            String    @id @default(cuid())
+  studentId     String
+  levelId       String
+  stars         Int       @default(0)
+  score         Int       @default(0)
+  attempts      Int       @default(0)
+  /// Total seconds spent on this level across all attempts.
+  timeSpent     Int       @default(0)
+  completedAt   DateTime?
+  /// Last client attempt id, makes offline re-sends idempotent.
+  lastAttemptId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  student       Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  level         Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, levelId])
+  @@index([levelId])
+  @@index([studentId, updatedAt])
+  @@index([updatedAt])
+}
+
+/// One answered question in one attempt — the basis of the knowledge reports.
+model ItemResult {
+  id        String   @id @default(cuid())
+  studentId String
+  wordId    String
+  levelId   String
+  /// Solved on the first try without hints.
+  correct   Boolean
+  mistakes  Int      @default(0)
+  hintsUsed Int      @default(0)
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  word      Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, wordId, createdAt])
+  @@index([wordId])
+  @@index([levelId])
+}
+
+model Admin {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  /// SHA-256 of the cookie token; the raw token never touches the DB.
+  tokenHash String   @unique
+  adminId   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
