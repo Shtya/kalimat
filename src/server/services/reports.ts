@@ -3,62 +3,77 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { Kind, Track } from "@/lib/quran/labels";
 
+/** Everything the dashboard home needs: headline numbers, the curriculum matrix and what needs attention. */
 export async function getOverview() {
   const weekAgo = new Date(Date.now() - 7 * 86_400_000);
-  const [students, activeThisWeek, scoreAgg, completions, recent, levelStats, mastery] = await Promise.all([
+  const [students, activeThisWeek, inactive, completedThisWeek, drafts, stations, recent, knowledge, hardest] = await Promise.all([
     db.student.count(),
     db.student.count({ where: { lastActiveAt: { gte: weekAgo } } }),
-    db.progress.aggregate({ _avg: { score: true, stars: true }, where: { completedAt: { not: null } } }),
-    db.progress.count({ where: { completedAt: { not: null } } }),
+    db.student.count({ where: { lastActiveAt: { lt: weekAgo } } }),
+    db.progress.count({ where: { completedAt: { gte: weekAgo } } }),
+    db.level.count({ where: { status: "DRAFT" } }),
+    db.station.findMany({
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        order: true,
+        title: true,
+        icon: true,
+        color: true,
+        stages: {
+          orderBy: { number: "asc" },
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            levels: { where: { status: "PUBLISHED" }, select: { _count: { select: { words: true } } } },
+          },
+        },
+      },
+    }),
     db.progress.findMany({
       where: { completedAt: { not: null } },
       orderBy: { updatedAt: "desc" },
-      take: 8,
+      take: 6,
       select: {
         id: true,
         stars: true,
-        score: true,
         updatedAt: true,
         student: { select: { id: true, name: true } },
-        level: { select: { title: true, stage: { select: { number: true, title: true } } } },
+        level: { select: { title: true, stage: { select: { number: true } } } },
       },
     }),
-    db.progress.groupBy({
-      by: ["levelId"],
-      where: { completedAt: { not: null } },
-      _avg: { stars: true, attempts: true },
-      _count: { _all: true },
-      having: { levelId: { _count: { gte: 2 } } },
-      orderBy: [{ _avg: { stars: "asc" } }],
-      take: 6,
-    }),
     getKnowledge({}),
+    getHardestQuestions({}, 3, 1),
   ]);
 
-  const levels = await db.level.findMany({
-    where: { id: { in: levelStats.map((s) => s.levelId) } },
-    select: { id: true, title: true, stage: { select: { number: true, title: true } } },
-  });
-  const byId = new Map(levels.map((l) => [l.id, l]));
-  const hardest = levelStats
-    .map((s) => ({
-      level: byId.get(s.levelId),
-      avgStars: s._avg.stars ?? 0,
-      avgAttempts: s._avg.attempts ?? 0,
-      players: s._count._all,
-    }))
-    .filter((s) => s.level)
-    .sort((a, b) => a.avgStars - b.avgStars || b.avgAttempts - a.avgAttempts);
+  const matrix = stations.map((st) => ({
+    ...st,
+    stages: st.stages.map((s) => ({
+      id: s.id,
+      number: s.number,
+      title: s.title,
+      levels: s.levels.length,
+      questions: s.levels.reduce((n, l) => n + l._count.words, 0),
+      mastery: knowledge.byStage.get(s.id) ?? null,
+    })),
+  }));
+  const allStages = matrix.flatMap((s) => s.stages);
+  const readyStages = allStages.filter((s) => s.levels > 0).length;
 
   return {
     students,
     activeThisWeek,
-    completions,
-    avgScore: Math.round(scoreAgg._avg.score ?? 0),
-    avgStars: Number((scoreAgg._avg.stars ?? 0).toFixed(1)),
-    mastery: mastery.overall,
+    inactive,
+    completedThisWeek,
+    drafts,
+    mastery: knowledge.overall,
+    readyStages,
+    totalStages: allStages.length,
+    nextEmptyStage: allStages.find((s) => s.levels === 0) ?? null,
+    matrix,
     recent,
-    hardest,
+    hardest: hardest[0] ?? null,
   };
 }
 

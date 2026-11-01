@@ -19,7 +19,7 @@ export default async function PlayLayout({ children }: { children: React.ReactNo
       <div className="kid-shell">
         <TopBarGate>
           <header className="kid-top">
-            <Link href={student ? "/journey" : "/"} className="kid-brand" aria-label="كلمات قرآنية — الرئيسية">
+            <Link href={student ? "/journey" : "/app"} className="kid-brand" aria-label="كلمات قرآنية — الرئيسية">
               <span className="kid-logo" aria-hidden>
                 ك
               </span>

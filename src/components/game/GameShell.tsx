@@ -8,6 +8,7 @@ import { submitAttempt } from "@/lib/offline-queue";
 import { scoreAttempt } from "@/lib/scoring";
 import { sfx } from "@/lib/sound";
 import { Icon } from "@/components/play/Icon";
+import { rememberFinished } from "@/components/play/UnlockFx";
 
 /** What a game mode gets from the shell. Modes own their board; the shell owns time, hints, facts and saving. */
 export type GameApi = {
@@ -44,7 +45,7 @@ type Phase = "playing" | "fact" | "saving" | "result";
 type Result = { stars: number; score: number; nextLevelId: string | null; offline: boolean; error?: string };
 
 /** Arabic-Indic digits, like the rest of the child app. */
-const ar = (v: number | string) => String(v).replace(/d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
+const ar = (v: number | string) => String(v).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
 const fmt = (s: number) => ar(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`);
 
 export function GameShell({ data, preview = false }: { data: GameData; preview?: boolean }) {
@@ -65,6 +66,16 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
   const perWord = useRef({ mistakes: words.map(() => 0), hints: words.map(() => 0) });
   const stats = useRef({ hintsUsed: 0, mistakes: 0, seconds: 0 });
   stats.current = { hintsUsed, mistakes, seconds };
+  // Feedback: a brief screen flash on every answer, and a streak chip for consecutive first-try words.
+  const [flash, setFlash] = useState<"good" | "bad" | null>(null);
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const pulse = useCallback((kind: "good" | "bad") => {
+    clearTimeout(flashTimer.current);
+    setFlash(kind);
+    flashTimer.current = setTimeout(() => setFlash(null), 650);
+  }, []);
+  const streakRef = useRef(0);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     attemptId.current = crypto.randomUUID();
@@ -103,6 +114,7 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
     if (res.status === "sent") {
       const d = res.data as { stars: number; score: number; nextLevelId: string | null };
       setResult({ stars: d.stars, score: d.score, nextLevelId: d.nextLevelId, offline: false });
+      rememberFinished(meta.id, d.nextLevelId); // the map plays the unlock moment on return
       router.refresh(); // updates the star counter in the header
     } else {
       setResult({ ...local, nextLevelId: null, offline: res.status === "queued", error: res.status === "rejected" ? res.error : undefined });
@@ -117,18 +129,35 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
       setFound(next);
       setLastSolved(i);
       sfx.correct();
+      pulse("good");
+      const clean = perWord.current.mistakes[i] === 0 && perWord.current.hints[i] === 0;
+      streakRef.current = clean ? streakRef.current + 1 : 0;
+      setStreak(streakRef.current);
       const done = next.every(Boolean);
       if (FACT_CARD[meta.type]) setTimeout(() => setPhase("fact"), 600);
       else if (done) setTimeout(() => void finish(), 900);
     },
-    [found, meta.type, finish],
+    [found, meta.type, finish, pulse],
   );
 
-  const mistake = useCallback((wordIndex?: number) => {
-    if (wordIndex !== undefined) perWord.current.mistakes[wordIndex]++;
-    sfx.wrong();
-    setMistakes((m) => m + 1);
-  }, []);
+  const mistake = useCallback(
+    (wordIndex?: number) => {
+      if (wordIndex !== undefined) perWord.current.mistakes[wordIndex]++;
+      sfx.wrong();
+      pulse("bad");
+      streakRef.current = 0;
+      setStreak(0);
+      setMistakes((m) => m + 1);
+    },
+    [pulse],
+  );
+
+  // Result: the earned stars land one by one, each with a rising note.
+  useEffect(() => {
+    if (phase !== "result" || !result) return;
+    const timers = Array.from({ length: result.stars }, (_, i) => setTimeout(() => sfx.tap(4 + i * 4), 260 + i * 220));
+    return () => timers.forEach(clearTimeout);
+  }, [phase, result]);
 
   function continueAfterFact() {
     if (found.every(Boolean)) return void finish();
@@ -148,6 +177,8 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
 
   function replay() {
     perWord.current = { mistakes: words.map(() => 0), hints: words.map(() => 0) };
+    streakRef.current = 0;
+    setStreak(0);
     setFound(words.map(() => false));
     setCurrent(0);
     setLastSolved(null);
@@ -165,7 +196,7 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
   const factWord = lastSolved !== null ? words[lastSolved] : null;
 
   return (
-    <div className="game">
+    <div className={`game${flash ? ` is-flash-${flash}` : ""}`}>
       {preview && <div className="preview-banner">وضع المعاينة — لن يُحفظ أي تقدم</div>}
       <div className="game-hud">
         <Link href={meta.backHref} className="hud-close" aria-label="إغلاق المستوى والعودة إلى الخريطة">
@@ -181,6 +212,12 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
           {fmt(seconds)}
         </span>
       </div>
+
+      {streak >= 2 && phase === "playing" && (
+        <div className="streak" key={streak} role="status">
+          <span aria-hidden>🔥</span> {ar(streak)} إجابات صحيحة متتالية
+        </div>
+      )}
 
       <Mode key={runId} data={data} api={api} />
 
@@ -244,7 +281,8 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
         <>
           <Confetti />
           <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="result-title">
-            <div className="sheet is-result">
+            <div className={`sheet is-result stars-${result.stars}`}>
+              {result.stars === 3 && <div className="result-rays" aria-hidden />}
               <div className="result-stars" aria-label={`${result.stars} من ٣ نجوم`}>
                 {[1, 2, 3].map((s) => (
                   <span key={s} className={s <= result.stars ? "is-on" : ""} style={{ "--i": s } as React.CSSProperties}>
@@ -254,9 +292,17 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
               </div>
               <h2 id="result-title" className="sheet-title">{result.stars === 3 ? "ممتاز! ثلاث نجوم" : result.stars === 2 ? "أحسنت!" : "أكملت المستوى!"}</h2>
               <p className="sheet-sub">{result.stars === 3 ? "حللت كل الكلمات بسرعة وبدون تلميح." : "العب مرة أخرى بدون تلميحات لتجمع ثلاث نجوم."}</p>
+              {result.nextLevelId && (
+                <p className="unlocked-chip">
+                  <Icon name="lock" size={16} /> فتحت مستوى جديدًا!
+                </p>
+              )}
               <div className="result-stats">
                 <span>
-                  <b>{ar(result.score)}</b>نقطة
+                  <b>
+                    <CountUp value={result.score} />
+                  </b>
+                  نقطة
                 </span>
                 <span>
                   <b>{fmt(seconds)}</b>الوقت
@@ -294,6 +340,24 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
       )}
     </div>
   );
+}
+
+/** Counts up to the score once, eased (Arabic-Indic digits). */
+function CountUp({ value }: { value: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return void setShown(value);
+    const start = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / 1100);
+      setShown(Math.round(value * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{ar(shown)}</>;
 }
 
 const COLORS = ["#f6c23b", "#1f63c6", "#2e9e5b", "#d6457e", "#0f9a91", "#7b4bb7"];

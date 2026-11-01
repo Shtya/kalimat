@@ -10,7 +10,7 @@ export const metadata = { title: "المحطة" };
 export default async function StationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const student = await getCurrentStudent();
-  if (!student) redirect("/");
+  if (!student) redirect("/app");
   const journey = await getJourney(student);
   const station = journey.stations.find((s) => s.id === id);
   if (!station) notFound();

@@ -10,15 +10,24 @@ export function Medal({
   size = 72,
   state = "open",
   label,
+  progress,
 }: {
   color: string;
   children: React.ReactNode;
   size?: number;
   state?: "open" | "current" | "done" | "locked";
   label?: string;
+  /** 0–1: draws a progress ring around the medal (e.g. share of the station completed). */
+  progress?: number;
 }) {
   return (
     <span className={`medal is-${state}`} style={{ "--c": color, "--s": `${size}px` } as React.CSSProperties} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+      {progress !== undefined && progress > 0 && (
+        <svg className="medal-ring" viewBox="0 0 100 100" aria-hidden>
+          <circle cx="50" cy="50" r="47" pathLength={100} />
+          <circle cx="50" cy="50" r="47" pathLength={100} className="medal-ring-fill" style={{ strokeDasharray: `${Math.round(progress * 100)} 100` }} />
+        </svg>
+      )}
       <span className="medal-face">{state === "locked" ? <Icon name="lock" size={Math.round(size * 0.34)} /> : children}</span>
       {state === "done" && (
         <span className="medal-check">

@@ -20,7 +20,7 @@ const KIND_FOR_KIDS = {
 
 export default async function AchievementsPage() {
   const student = await getCurrentStudent();
-  if (!student) redirect("/");
+  if (!student) redirect("/app");
   const [journey, knowledge] = await Promise.all([getJourney(student), getKnowledge({ studentId: student.id })]);
   const stars = journey.levels.reduce((s, l) => s + l.stars, 0);
   const levelsDone = journey.levels.filter((l) => l.completed).length;

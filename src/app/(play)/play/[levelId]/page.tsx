@@ -10,7 +10,7 @@ export const metadata = { title: "العب" };
 export default async function PlayPage({ params }: { params: Promise<{ levelId: string }> }) {
   const { levelId } = await params;
   const student = await getCurrentStudent();
-  if (!student) redirect("/");
+  if (!student) redirect("/app");
   const level = await getPublishedLevel(levelId);
   if (!level || level.words.length === 0 || (level.audience !== "ALL" && level.audience !== student.track)) notFound();
   const journey = await getJourney(student);

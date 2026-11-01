@@ -10,7 +10,7 @@ export const metadata = { title: "رحلتي" };
 
 export default async function JourneyPage() {
   const student = await getCurrentStudent();
-  if (!student) redirect("/");
+  if (!student) redirect("/app");
   const journey = await getJourney(student);
   const current = journey.levels.find((l) => l.id === journey.currentLevelId);
   const currentStation = journey.stations.find((s) => s.stages.some((st) => st.levels.some((l) => l.id === current?.id)));
@@ -52,7 +52,7 @@ export default async function JourneyPage() {
           const state = !st.unlocked ? "locked" : st.completed ? "done" : isCurrent ? "current" : "open";
           const body = (
             <>
-              <Medal color={st.color} state={state} size={68}>
+              <Medal color={st.color} state={state} size={68} progress={st.total ? st.done / st.total : 0}>
                 <span className="medal-emoji">{st.icon}</span>
               </Medal>
               <span className="trail-card">

@@ -8,7 +8,7 @@ export const metadata = { title: "حسابي" };
 
 export default async function SettingsPage() {
   const student = await getCurrentStudent();
-  if (!student) redirect("/");
+  if (!student) redirect("/app");
   const saved = !!(student.phone || student.email);
 
   return (

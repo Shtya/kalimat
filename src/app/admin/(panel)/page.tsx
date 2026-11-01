@@ -1,133 +1,206 @@
 import Link from "next/link";
+import { Icon } from "@/components/play/Icon";
 import { stars, timeAgo } from "@/lib/format";
+import { KIND_LABEL } from "@/lib/quran/labels";
+import { requireAdmin } from "@/server/services/auth";
 import { getOverview } from "@/server/services/reports";
 
-export const metadata = { title: "نظرة عامة" };
+export const metadata = { title: "الرئيسية" };
+
+const tone = (pct: number | null) => (pct === null ? "none" : pct >= 75 ? "good" : pct >= 50 ? "mid" : "low");
 
 export default async function OverviewPage() {
-  const o = await getOverview();
+  const [admin, o] = await Promise.all([requireAdmin(), getOverview()]);
+  const readyPct = Math.round((o.readyStages / o.totalStages) * 100);
+
+  // One sentence that says where things stand and what to do next.
+  const status =
+    o.readyStages === 0
+      ? "ابدأ برفع أسئلة المرحلة الأولى ليبدأ الطلاب اللعب."
+      : o.nextEmptyStage
+        ? `${o.readyStages} من ${o.totalStages} مرحلة جاهزة للطلاب. التالية: المرحلة ${o.nextEmptyStage.number} «${o.nextEmptyStage.title}».`
+        : "كل مراحل المنهج جاهزة للطلاب.";
+
+  const attention = [
+    o.nextEmptyStage && {
+      icon: "upload" as const,
+      text: `المرحلة ${o.nextEmptyStage.number} بدون أسئلة`,
+      action: "ارفع ملف Excel",
+      href: "/admin/import",
+    },
+    o.drafts > 0 && { icon: "book" as const, text: `${o.drafts} مستوى مسودة لم يُنشر`, action: "راجع المستويات", href: "/admin/levels" },
+    o.hardest && {
+      icon: "alert" as const,
+      text: `سؤال «${o.hardest.word.text}» يخطئ فيه ${100 - (o.hardest.pct ?? 0)}٪ من الطلاب`,
+      action: "اعرف الأسئلة الصعبة",
+      href: "/admin/insights",
+    },
+    o.inactive > 0 && { icon: "users" as const, text: `${o.inactive} طالب لم يلعب منذ أسبوع`, action: "عرض الطلاب", href: "/admin/students" },
+  ].filter(Boolean) as { icon: "upload" | "book" | "alert" | "users"; text: string; action: string; href: string }[];
+
   return (
     <>
-      <div className="adm-head">
+      <header className="dash-hero">
         <div>
-          <h1>نظرة عامة</h1>
-          <p>ملخص نشاط الطلاب ومستويات اللعب</p>
+          <h1>أهلًا {admin.name}</h1>
+          <p>{status}</p>
         </div>
-      </div>
+        <div className="actions">
+          <Link href="/admin/import" className="abtn abtn-lg">
+            <Icon name="upload" size={20} /> رفع أسئلة Excel
+          </Link>
+        </div>
+      </header>
 
-      <div className="stats">
-        <div className="stat">
-          <span>عدد الطلاب</span>
-          <b>{o.students}</b>
-        </div>
-        <div className="stat">
-          <span>نشطون هذا الأسبوع</span>
-          <b>{o.activeThisWeek}</b>
-        </div>
-        <div className="stat">
-          <span>متوسط النقاط لكل مستوى</span>
-          <b>{o.avgScore}</b>
-        </div>
-        <div className="stat">
-          <span>
-            إتقان المعارف <Link href="/admin/insights">←</Link>
+      <section className="kpis" aria-label="الأرقام الأساسية">
+        <Link href="/admin/students" className="kpi">
+          <span className="kpi-icon is-blue">
+            <Icon name="users" />
           </span>
-          <b>{o.mastery.pct === null ? "—" : `${o.mastery.pct}%`}</b>
+          <b>{o.students}</b>
+          <span className="kpi-label">طالب مسجّل</span>
+          <small>{o.activeThisWeek} لعبوا هذا الأسبوع</small>
+        </Link>
+        <Link href="/admin/curriculum" className="kpi">
+          <span className="kpi-icon is-gold">
+            <Icon name="layers" />
+          </span>
+          <b>
+            {o.readyStages}
+            <i>/{o.totalStages}</i>
+          </b>
+          <span className="kpi-label">مرحلة جاهزة بالأسئلة</span>
+          <span className="kpi-bar" aria-hidden>
+            <i style={{ width: `${readyPct}%` }} />
+          </span>
+        </Link>
+        <Link href="/admin/insights" className="kpi">
+          <span className={`kpi-icon is-${tone(o.mastery.pct)}`}>
+            <Icon name="chart" />
+          </span>
+          <b>{o.mastery.pct === null ? "—" : `${o.mastery.pct}٪`}</b>
+          <span className="kpi-label">إتقان المعارف</span>
+          <small>{o.mastery.answered ? `إجابات صحيحة من أول مرة (${o.mastery.answered} إجابة)` : "يظهر بعد أول إجابات للطلاب"}</small>
+        </Link>
+        <div className="kpi">
+          <span className="kpi-icon is-teal">
+            <Icon name="check" />
+          </span>
+          <b>{o.completedThisWeek}</b>
+          <span className="kpi-label">مستوى أُنجز هذا الأسبوع</span>
+          <small>كل مستوى يُحسب مرة لكل طالب</small>
         </div>
-        <div className="stat">
-          <span>متوسط النجوم</span>
-          <b>{o.avgStars} ★</b>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h2>خريطة المنهج</h2>
+            <p>كل مربع مرحلة. اللون يوضح إتقان الطلاب، والمربع المنقّط مرحلة بدون أسئلة بعد.</p>
+          </div>
+          <div className="legend" aria-hidden>
+            <span className="lg-good">إتقان عالٍ</span>
+            <span className="lg-mid">متوسط</span>
+            <span className="lg-low">يحتاج دعم</span>
+            <span className="lg-empty">بدون أسئلة</span>
+          </div>
         </div>
-        <div className="stat">
-          <span>مستويات مكتملة</span>
-          <b>{o.completions}</b>
+        <div className="matrix">
+          {o.matrix.map((st) => (
+            <div key={st.id} className="matrix-row" style={{ "--c": st.color } as React.CSSProperties}>
+              <div className="matrix-station">
+                <span aria-hidden>{st.icon}</span>
+                <span>
+                  <small>المحطة {st.order}</small>
+                  <b>{st.title}</b>
+                </span>
+              </div>
+              {st.stages.map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/admin/levels?stage=${s.id}`}
+                  className={`matrix-cell ${s.levels === 0 ? "is-empty" : `is-${tone(s.mastery?.pct ?? null)}`}`}
+                  title={s.title}
+                >
+                  <span className="cell-num">{s.number}</span>
+                  <span className="cell-title">{s.title}</span>
+                  <span className="cell-meta">
+                    {s.levels === 0 ? (
+                      "بدون أسئلة"
+                    ) : (
+                      <>
+                        {s.levels} مستوى · {s.questions} سؤال
+                        {s.mastery?.pct != null && <b>{s.mastery.pct}٪</b>}
+                      </>
+                    )}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
 
       <div className="grid-2">
         <section className="panel">
-          <h2>النشاط الأخير</h2>
-          {o.recent.length === 0 ? (
-            <p className="muted">لا يوجد نشاط بعد.</p>
+          <div className="panel-head">
+            <h2>يحتاج انتباهك</h2>
+          </div>
+          {attention.length === 0 ? (
+            <p className="muted">لا شيء الآن. كل شيء يسير بشكل جيد.</p>
           ) : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>الطالب</th>
-                    <th>المرحلة</th>
-                    <th>النجوم</th>
-                    <th>متى</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {o.recent.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        <Link className="row-link" href={`/admin/students/${r.student.id}`}>
-                          {r.student.name}
-                        </Link>
-                      </td>
-                      <td>
-                        {r.level.title}
-                        <div className="muted" style={{ fontSize: "0.8rem" }}>
-                          المرحلة {r.level.stage.number}: {r.level.stage.title}
-                        </div>
-                      </td>
-                      <td style={{ color: "var(--gold-deep)" }}>{stars(r.stars)}</td>
-                      <td className="muted num">{timeAgo(r.updatedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className="todo">
+              {attention.map((a) => (
+                <li key={a.text}>
+                  <span className="todo-icon">
+                    <Icon name={a.icon} size={18} />
+                  </span>
+                  <span className="todo-text">{a.text}</span>
+                  <Link href={a.href} className="abtn abtn-light abtn-sm">
+                    {a.action}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          {o.hardest && (
+            <p className="muted small-note">
+              نوع السؤال الأصعب: {KIND_LABEL[o.hardest.word.kind].icon} {KIND_LABEL[o.hardest.word.kind].name} — {o.hardest.word.hint}
+            </p>
           )}
         </section>
 
         <section className="panel">
-          <h2>أصعب المراحل</h2>
-          <p className="muted" style={{ marginTop: -6, fontSize: "0.85rem" }}>
-            الأقل في متوسط النجوم (لاعبان على الأقل)
-          </p>
-          {o.hardest.length === 0 ? (
-            <p className="muted">لا توجد بيانات كافية بعد.</p>
+          <div className="panel-head">
+            <h2>آخر النشاط</h2>
+            <Link href="/admin/students" className="link-more">
+              كل الطلاب
+            </Link>
+          </div>
+          {o.recent.length === 0 ? (
+            <p className="muted">سيظهر هنا ما يلعبه الطلاب أولًا بأول.</p>
           ) : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>المرحلة</th>
-                    <th>متوسط النجوم</th>
-                    <th>المحاولات</th>
-                    <th>اللاعبون</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {o.hardest.map(({ level, avgStars, avgAttempts, players }) =>
-                    level ? (
-                      <tr key={level.id}>
-                        <td>
-                          <Link className="row-link" href={`/admin/levels/${level.id}`}>
-                            {level.title}
-                          </Link>
-                          <div className="muted" style={{ fontSize: "0.8rem" }}>
-                            المرحلة {level.stage.number}: {level.stage.title}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="hbar">
-                            <i style={{ width: `${(avgStars / 3) * 100}%` }} />
-                          </div>
-                          <small className="num">{avgStars.toFixed(1)} / 3</small>
-                        </td>
-                        <td className="num">{avgAttempts.toFixed(1)}</td>
-                        <td className="num">{players}</td>
-                      </tr>
-                    ) : null,
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <ul className="feed">
+              {o.recent.map((r) => (
+                <li key={r.id}>
+                  <span className="feed-avatar" aria-hidden>
+                    {Array.from(r.student.name)[0]}
+                  </span>
+                  <span className="feed-text">
+                    <Link href={`/admin/students/${r.student.id}`} className="row-link">
+                      {r.student.name}
+                    </Link>{" "}
+                    أنهى «{r.level.title}»
+                    <small>
+                      المرحلة {r.level.stage.number} · {timeAgo(r.updatedAt)}
+                    </small>
+                  </span>
+                  <span className="feed-stars" aria-label={`${r.stars} نجوم`}>
+                    {stars(r.stars)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       </div>

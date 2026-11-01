@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "لعبة كلمات قرآنية تعليمية للأطفال والنشء",
     lang: "ar",
     dir: "rtl",
-    start_url: "/",
+    start_url: "/app",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

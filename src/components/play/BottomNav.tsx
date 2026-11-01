@@ -15,7 +15,7 @@ const ACHIEVEMENTS: Item = { href: "/achievements", label: "إنجازاتي", i
  */
 export function BottomNav({ playHref }: { playHref: string }) {
   const path = usePathname();
-  if (path === "/" || path.startsWith("/play")) return null;
+  if (path === "/app" || path.startsWith("/play")) return null;
 
   const tab = (item: Item) => {
     const active = item.match(path);

@@ -14,7 +14,7 @@ export default function NotFound() {
           <h1 className="state-title">لم نجد هذه الصفحة</h1>
           <p className="state-text">ربما تغيّر المستوى أو لم يُنشر بعد.</p>
           <div className="state-actions">
-            <Link href="/" className="btn">
+            <Link href="/app" className="btn">
               <Icon name="home" /> العودة للبداية
             </Link>
           </div>
