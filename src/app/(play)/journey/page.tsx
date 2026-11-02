@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Icon } from "@/components/play/Icon";
+import { ScrollToFocus } from "@/components/play/ScrollToFocus";
 import { Medal, Progress, toArabic } from "@/components/play/ui";
 import { TRACK_LABEL } from "@/lib/quran/labels";
 import { getJourney } from "@/server/services/progress";
@@ -15,6 +16,8 @@ export default async function JourneyPage() {
   const current = journey.levels.find((l) => l.id === journey.currentLevelId);
   const currentStation = journey.stations.find((s) => s.stages.some((st) => st.levels.some((l) => l.id === current?.id)));
   const allDone = journey.levels.length > 0 && !current;
+  // Stations climb from the bottom; scroll to where the student is now.
+  const focusId = currentStation?.id ?? journey.stations.findLast((s) => s.unlocked)?.id;
 
   return (
     <>
@@ -73,7 +76,7 @@ export default async function JourneyPage() {
             </>
           );
           return (
-            <li key={st.id} className={`trail-step is-${state}`}>
+            <li key={st.id} className={`trail-step is-${state}`} data-focus={st.id === focusId ? "" : undefined}>
               {st.unlocked ? (
                 <Link href={`/stations/${st.id}`} className="trail-link" style={{ "--c": st.color } as React.CSSProperties}>
                   {body}
@@ -87,6 +90,7 @@ export default async function JourneyPage() {
           );
         })}
       </ol>
+      <ScrollToFocus />
     </>
   );
 }

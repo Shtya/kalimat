@@ -810,47 +810,7 @@ a.trail-link:active .trail-card {
   box-shadow: 0 0 0 2.5px var(--k-gold), var(--k-shadow);
 }
 
-/* ───────────── Station (banner + numbered stages) ───────────── */
-.banner {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 4px 12px;
-  padding: 14px 16px 18px;
-  border-radius: var(--k-r-lg);
-  color: #fff;
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='88' viewBox='0 0 88 88'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.12' stroke-width='1.4'%3E%3Crect x='24' y='24' width='40' height='40'/%3E%3Crect x='24' y='24' width='40' height='40' transform='rotate(45 44 44)'/%3E%3C/g%3E%3C/svg%3E"),
-    linear-gradient(155deg, color-mix(in srgb, var(--c) 82%, #fff), color-mix(in srgb, var(--c) 82%, #000));
-  box-shadow: 0 6px 0 color-mix(in srgb, var(--c) 60%, #000), var(--k-shadow-lift);
-}
-.banner .back-btn {
-  grid-column: 1 / -1;
-  justify-self: start;
-  margin-bottom: 6px;
-}
-.banner .medal::before,
-.banner .medal::after {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 220, 110, 0.9);
-}
-.banner-text small {
-  font-weight: 800;
-  opacity: 0.85;
-}
-.banner-text h1 {
-  margin: 0;
-  font-size: 1.3rem;
-  line-height: 1.35;
-}
-.banner-goal {
-  grid-column: 1 / -1;
-  margin: 8px 0 0;
-  font-weight: 600;
-  font-size: 0.92rem;
-  opacity: 0.94;
-}
+/* ───────────── Station (numbered stages, climbing from the bottom) ───────────── */
 .steps {
   position: relative;
   list-style: none;
@@ -946,36 +906,6 @@ a.step-link:active .step-card {
 }
 
 /* ───────────── Stage map ───────────── */
-.learn {
-  margin-bottom: 6px;
-  padding: 2px 16px;
-  border-radius: var(--k-r);
-  background: var(--k-paper);
-  box-shadow: var(--k-shadow);
-}
-.learn summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  list-style: none;
-  cursor: pointer;
-  padding: 12px 0;
-  font-weight: 800;
-  color: var(--k-lapis);
-}
-.learn summary::-webkit-details-marker {
-  display: none;
-}
-.learn p {
-  margin: 0 0 12px;
-  color: var(--k-ink-2);
-  font-weight: 600;
-  line-height: 1.7;
-}
-.learn .learn-surahs {
-  color: var(--k-muted);
-  font-size: 0.86rem;
-}
 .kid .map {
   position: relative;
   width: 100%;
@@ -2212,19 +2142,6 @@ a.step-link:active .step-card {
     font-size: 0.93rem;
   }
 
-  /* Station */
-  .banner {
-    padding: 12px 14px 14px;
-  }
-  .banner .medal {
-    --s: 52px !important;
-  }
-  .banner-text h1 {
-    font-size: 1.12rem;
-  }
-  .banner-goal {
-    font-size: 0.85rem;
-  }
   .steps {
     margin-top: 14px;
     gap: 10px;
@@ -2673,4 +2590,168 @@ a.step-link:active .step-card {
   .badge-card.is-earned::after {
     display: none;
   }
+}
+
+/* ═══════════ Floating bars ═══════════
+   The paths climb from the bottom (the page opens scrolled down to the current step), so the top bar
+   floats: a slim glass capsule pinned to the top. On the station/stage maps it is replaced by MapHead,
+   which carries the back button, the title, an «about» popover and the stars in the same capsule.
+   Kept last so it overrides the phone-size rules above. */
+.kid-top,
+.map-head {
+  position: sticky;
+  top: 8px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow:
+    0 0 0 1px rgba(27, 77, 168, 0.07),
+    0 14px 30px -20px rgba(14, 35, 80, 0.5);
+}
+.kid-top {
+  justify-content: space-between;
+  height: 50px;
+  padding: 0 7px 0 9px;
+}
+.kid-brand {
+  gap: 8px;
+  font-size: 1rem;
+}
+.kid-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  box-shadow:
+    0 3px 0 var(--tile-edge),
+    inset 0 2px 0 rgba(255, 255, 255, 0.8);
+}
+.kid-top .star-pill,
+.map-head .star-pill {
+  height: 36px;
+  padding: 0 11px 0 9px;
+  gap: 5px;
+  background: rgba(245, 184, 46, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(245, 184, 46, 0.35);
+}
+.kid-top .avatar-btn {
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+}
+
+.map-head {
+  min-height: 56px;
+  padding: 7px 8px;
+}
+.mh-back,
+.mh-info summary {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  transition:
+    transform 0.12s,
+    background 0.2s,
+    color 0.2s;
+}
+.mh-back {
+  color: var(--c, var(--k-lapis));
+  background: color-mix(in srgb, var(--c, var(--k-lapis)) 13%, #fff);
+}
+.mh-back:active,
+.mh-info summary:active {
+  transform: scale(0.92);
+}
+.mh-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.mh-text small {
+  overflow: hidden;
+  color: var(--c, var(--k-lapis));
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mh-text h1 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.mh-info summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--k-lapis);
+  background: var(--k-tint);
+}
+.mh-info summary::-webkit-details-marker {
+  display: none;
+}
+.mh-info[open] summary {
+  color: #fff;
+  background: var(--k-lapis);
+}
+/* the «about» card drops down under the bar instead of pushing the map down */
+.mh-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline: 0;
+  padding: 14px 16px 16px;
+  border-radius: 20px;
+  background: var(--k-paper);
+  box-shadow:
+    0 0 0 1px rgba(27, 77, 168, 0.07),
+    var(--k-shadow-lift);
+  animation: k-pop 0.22s ease-out;
+}
+@keyframes k-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+.mh-pop-title {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--c, var(--k-lapis));
+  font-size: 0.95rem;
+}
+.mh-pop p {
+  margin: 0;
+  color: var(--k-ink-2);
+  font-size: 0.93rem;
+  font-weight: 600;
+  line-height: 1.75;
+}
+.mh-pop .mh-pop-sub {
+  margin-top: 8px;
+  color: var(--k-muted);
+  font-size: 0.84rem;
+}
+
+/* Stations and stages climb like the level map: the first one at the bottom (DOM order unchanged for screen readers). */
+.trail,
+.steps {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.steps {
+  margin-top: 0;
 }

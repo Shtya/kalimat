@@ -152,13 +152,6 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
     [pulse],
   );
 
-  // Result: the earned stars land one by one, each with a rising note.
-  useEffect(() => {
-    if (phase !== "result" || !result) return;
-    const timers = Array.from({ length: result.stars }, (_, i) => setTimeout(() => sfx.tap(4 + i * 4), 260 + i * 220));
-    return () => timers.forEach(clearTimeout);
-  }, [phase, result]);
-
   function continueAfterFact() {
     if (found.every(Boolean)) return void finish();
     setCurrent(found.findIndex((f) => !f));

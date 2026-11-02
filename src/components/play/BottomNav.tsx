@@ -43,10 +43,13 @@ export function BottomNav({ playHref }: { playHref: string }) {
   );
 }
 
-/** Hides the top bar inside a game so the board gets the whole screen. */
+/**
+ * Hides the top bar inside a game so the board gets the whole screen, and on the station/stage maps,
+ * which carry their own floating bar (MapHead) with the title, back button and stars.
+ */
 export function TopBarGate({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  return path.startsWith("/play") ? null : <>{children}</>;
+  return path.startsWith("/play") || path.startsWith("/stages") || path.startsWith("/stations") ? null : <>{children}</>;
 }
 
 /** Avatar button to «حسابي», highlighted while on that page. */

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Icon } from "./Icon";
 
 export const toArabic = (n: number) => n.toLocaleString("ar-EG");
+/** Star counters use 0–9: the Arabic-Indic zero «٠» reads as a dot to young players. */
+export const starCount = (n: number) => n.toLocaleString("en-US");
 
 /** The khatam (8-point star) medallion — the app's signature shape for stations and badges. */
 export function Medal({
@@ -38,20 +40,52 @@ export function Medal({
   );
 }
 
-/** Screen title with an optional back button (always top-start, same place on every screen). */
-export function PageHead({ back, backLabel, title, sub }: { back?: string; backLabel?: string; title: React.ReactNode; sub?: React.ReactNode }) {
+/**
+ * Slim floating bar for the station and stage maps (they replace the app's top bar there). Maps start at
+ * the bottom, so this stays pinned to the top: back, title, an optional «about» popover, and the stars.
+ */
+export function MapHead({
+  back,
+  backLabel,
+  kicker,
+  title,
+  stars,
+  info,
+  infoLabel,
+}: {
+  back: string;
+  backLabel: string;
+  kicker: React.ReactNode;
+  title: React.ReactNode;
+  stars: number;
+  info?: React.ReactNode;
+  infoLabel?: string;
+}) {
   return (
-    <div className="page-head">
-      {back && (
-        <Link href={back} className="back-btn" aria-label={backLabel ? `رجوع إلى ${backLabel}` : "رجوع"}>
-          <Icon name="forward" size={20} />
-        </Link>
-      )}
-      <div className="page-head-text">
-        <h1 className="page-title">{title}</h1>
-        {sub && <p className="page-sub">{sub}</p>}
+    <header className="map-head">
+      <Link href={back} className="mh-back" aria-label={`رجوع إلى ${backLabel}`}>
+        <Icon name="forward" size={18} />
+      </Link>
+      <div className="mh-text">
+        <small>{kicker}</small>
+        <h1>{title}</h1>
       </div>
-    </div>
+      {info && (
+        <details className="mh-info">
+          <summary aria-label={infoLabel} title={infoLabel}>
+            <Icon name="book" size={18} />
+          </summary>
+          <div className="mh-pop">
+            {infoLabel && <b className="mh-pop-title">{infoLabel}</b>}
+            {info}
+          </div>
+        </details>
+      )}
+      <Link href="/achievements" className="star-pill" aria-label={`نجومك: ${stars}`}>
+        <Icon name="star" size={16} filled />
+        {starCount(stars)}
+      </Link>
+    </header>
   );
 }
 

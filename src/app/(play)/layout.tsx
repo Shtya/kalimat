@@ -3,10 +3,9 @@ import { AccountLink, BottomNav, TopBarGate } from "@/components/play/BottomNav"
 import { Icon } from "@/components/play/Icon";
 import { SoundToggle } from "@/components/play/SoundToggle";
 import { SyncAgent } from "@/components/play/SyncAgent";
+import { starCount } from "@/components/play/ui";
 import { getJourney } from "@/server/services/progress";
 import { getCurrentStudent } from "@/server/services/student";
-
-const toArabic = (n: number) => n.toLocaleString("ar-EG");
 
 export default async function PlayLayout({ children }: { children: React.ReactNode }) {
   const student = await getCurrentStudent();
@@ -30,7 +29,7 @@ export default async function PlayLayout({ children }: { children: React.ReactNo
                 <>
                   <Link href="/achievements" className="star-pill" aria-label={`نجومك: ${stars}`}>
                     <Icon name="star" size={18} filled />
-                    {toArabic(stars)}
+                    {starCount(stars)}
                   </Link>
                   <AccountLink initial={Array.from(student.name)[0]} />
                 </>

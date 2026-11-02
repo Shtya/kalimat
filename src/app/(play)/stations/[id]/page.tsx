@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Icon } from "@/components/play/Icon";
-import { Medal, Progress, toArabic } from "@/components/play/ui";
+import { ScrollToFocus } from "@/components/play/ScrollToFocus";
+import { MapHead, Progress, starCount, toArabic } from "@/components/play/ui";
 import { getJourney } from "@/server/services/progress";
 import { getCurrentStudent } from "@/server/services/student";
 
@@ -15,22 +16,21 @@ export default async function StationPage({ params }: { params: Promise<{ id: st
   const station = journey.stations.find((s) => s.id === id);
   if (!station) notFound();
   if (!station.unlocked) redirect("/journey");
+  const totalStars = journey.levels.reduce((s, l) => s + l.stars, 0);
+  // Stages climb from the bottom; scroll to the one to play now (or the last open one).
+  const focusId = (station.stages.find((s) => s.unlocked && !s.completed && s.total > 0) ?? station.stages.findLast((s) => s.unlocked))?.id;
 
   return (
     <div style={{ "--c": station.color } as React.CSSProperties}>
-      <header className="banner">
-        <Link href="/journey" className="back-btn on-color" aria-label="رجوع إلى المحطات">
-          <Icon name="forward" size={20} />
-        </Link>
-        <Medal color="#ffffff" size={64} state="open">
-          <span className="medal-emoji">{station.icon}</span>
-        </Medal>
-        <div className="banner-text">
-          <small>المحطة {toArabic(station.order)}</small>
-          <h1>{station.title}</h1>
-        </div>
-        <p className="banner-goal">{station.goal}</p>
-      </header>
+      <MapHead
+        back="/journey"
+        backLabel="المحطات"
+        kicker={`${station.icon} المحطة ${toArabic(station.order)}`}
+        title={station.title}
+        stars={totalStars}
+        infoLabel="عن هذه المحطة"
+        info={<p>{station.goal}</p>}
+      />
 
       <ol className="steps">
         {station.stages.map((stage) => {
@@ -65,7 +65,7 @@ export default async function StationPage({ params }: { params: Promise<{ id: st
                     </span>
                     <span className="star-mini">
                       <Icon name="star" size={14} filled />
-                      {toArabic(stage.stars)}
+                      {starCount(stage.stars)}
                     </span>
                   </span>
                 )}
@@ -73,7 +73,7 @@ export default async function StationPage({ params }: { params: Promise<{ id: st
             </>
           );
           return (
-            <li key={stage.id} className={`step is-${state}`}>
+            <li key={stage.id} className={`step is-${state}`} data-focus={stage.id === focusId ? "" : undefined}>
               {playable ? (
                 <Link href={`/stages/${stage.id}`} className="step-link">
                   {body}
@@ -85,6 +85,7 @@ export default async function StationPage({ params }: { params: Promise<{ id: st
           );
         })}
       </ol>
+      <ScrollToFocus />
     </div>
   );
 }

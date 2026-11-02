@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Icon } from "@/components/play/Icon";
 import { ScrollToFocus } from "@/components/play/ScrollToFocus";
 import { UnlockFx } from "@/components/play/UnlockFx";
-import { PageHead, Stars, toArabic } from "@/components/play/ui";
+import { MapHead, Stars, toArabic } from "@/components/play/ui";
 import { GAME_TYPE_LABEL } from "@/lib/format";
 import { getJourney } from "@/server/services/progress";
 import { getCurrentStudent } from "@/server/services/student";
@@ -24,6 +24,7 @@ export default async function StageMapPage({ params }: { params: Promise<{ id: s
   if (!station || !stage) notFound();
   if (!stage.unlocked) redirect(`/stations/${station.id}`);
   const levels = stage.levels;
+  const totalStars = journey.levels.reduce((s, l) => s + l.stars, 0);
 
   // The path climbs: level 1 sits at the bottom and each next level is above it.
   const height = EDGE * 2 + Math.max(0, levels.length - 1) * STEP;
@@ -46,16 +47,21 @@ export default async function StageMapPage({ params }: { params: Promise<{ id: s
 
   return (
     <div style={{ "--c": station.color } as React.CSSProperties}>
-      <PageHead back={`/stations/${station.id}`} backLabel={station.title} title={stage.title} sub={`المرحلة ${toArabic(stage.number)} · ${toArabic(stage.done)} من ${toArabic(stage.total)} مستويات`} />
-
-      <details className="learn">
-        <summary>
-          <Icon name="book" size={20} />
-          ماذا سنتعلم في هذه المرحلة؟
-        </summary>
-        <p>{stage.valueCluster}</p>
-        <p className="learn-surahs">السور: {stage.surahs.join("، ")}</p>
-      </details>
+      <MapHead
+        back={`/stations/${station.id}`}
+        backLabel={station.title}
+        // RLM keeps the two numbers on either side of «·» from merging into one bidi run
+        kicker={`المرحلة ${toArabic(stage.number)}‏ · ${toArabic(stage.done)} من ${toArabic(stage.total)} مستويات`}
+        title={stage.title}
+        stars={totalStars}
+        infoLabel="ماذا سنتعلم في هذه المرحلة؟"
+        info={
+          <>
+            <p>{stage.valueCluster}</p>
+            <p className="mh-pop-sub">السور: {stage.surahs.join("، ")}</p>
+          </>
+        }
+      />
 
       {levels.length === 0 ? (
         <div className="state">
