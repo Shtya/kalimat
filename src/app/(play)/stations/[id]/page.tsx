@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Icon } from "@/components/play/Icon";
 import { ScrollToFocus } from "@/components/play/ScrollToFocus";
 import { MapHead, Progress, starCount, toArabic } from "@/components/play/ui";
+import { isOfflinePrefetch } from "@/server/services/offline";
 import { getJourney } from "@/server/services/progress";
 import { getCurrentStudent } from "@/server/services/student";
 
@@ -15,7 +16,7 @@ export default async function StationPage({ params }: { params: Promise<{ id: st
   const journey = await getJourney(student);
   const station = journey.stations.find((s) => s.id === id);
   if (!station) notFound();
-  if (!station.unlocked) redirect("/journey");
+  if (!station.unlocked && !(await isOfflinePrefetch())) redirect("/journey");
   const totalStars = journey.levels.reduce((s, l) => s + l.stars, 0);
   // Stages climb from the bottom; scroll to the one to play now (or the last open one).
   const focusId = (station.stages.find((s) => s.unlocked && !s.completed && s.total > 0) ?? station.stages.findLast((s) => s.unlocked))?.id;

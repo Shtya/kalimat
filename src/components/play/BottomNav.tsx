@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buzz } from "@/lib/sound";
 import { Icon, type IconName } from "./Icon";
+import { useProgress } from "./OfflineProgress";
 
 type Item = { href: string; label: string; icon: IconName; match: (path: string) => boolean };
 
@@ -15,6 +16,9 @@ const ACHIEVEMENTS: Item = { href: "/achievements", label: "إنجازاتي", i
  */
 export function BottomNav({ playHref }: { playHref: string }) {
   const path = usePathname();
+  // Follows levels finished offline too, so «العب» always opens the next one.
+  const { currentId } = useProgress();
+  if (currentId) playHref = `/play/${currentId}`;
   if (path === "/app" || path.startsWith("/play")) return null;
 
   const tab = (item: Item) => {

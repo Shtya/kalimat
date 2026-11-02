@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameData, GameType } from "@/lib/games/types";
-import { submitAttempt } from "@/lib/offline-queue";
+import { markDone, submitAttempt } from "@/lib/offline-queue";
 import { scoreAttempt } from "@/lib/scoring";
 import { sfx } from "@/lib/sound";
 import { Icon } from "@/components/play/Icon";
+import { useProgress } from "@/components/play/OfflineProgress";
 import { rememberFinished } from "@/components/play/UnlockFx";
 
 /** What a game mode gets from the shell. Modes own their board; the shell owns time, hints, facts and saving. */
@@ -51,6 +52,7 @@ const fmt = (s: number) => ar(`${Math.floor(s / 60)}:${String(s % 60).padStart(2
 export function GameShell({ data, preview = false }: { data: GameData; preview?: boolean }) {
   const { meta, words } = data;
   const router = useRouter();
+  const { nextAfter } = useProgress();
   const [found, setFound] = useState<boolean[]>(() => words.map(() => false));
   const [current, setCurrent] = useState(0);
   const [lastSolved, setLastSolved] = useState<number | null>(null);
@@ -113,14 +115,21 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
     });
     if (res.status === "sent") {
       const d = res.data as { stars: number; score: number; nextLevelId: string | null };
+      markDone(meta.id, d.stars); // shown at once; dropped when the refreshed journey has it
       setResult({ stars: d.stars, score: d.score, nextLevelId: d.nextLevelId, offline: false });
       rememberFinished(meta.id, d.nextLevelId); // the map plays the unlock moment on return
       router.refresh(); // updates the star counter in the header
+    } else if (res.status === "queued") {
+      // Offline: the result waits on this device; the next level opens now and syncs later.
+      markDone(meta.id, local.stars);
+      const next = nextAfter(meta.id);
+      setResult({ ...local, nextLevelId: next, offline: true });
+      rememberFinished(meta.id, next);
     } else {
-      setResult({ ...local, nextLevelId: null, offline: res.status === "queued", error: res.status === "rejected" ? res.error : undefined });
+      setResult({ ...local, nextLevelId: null, offline: false, error: res.error });
     }
     setPhase("result");
-  }, [meta, words, preview, router]);
+  }, [meta, words, preview, router, nextAfter]);
 
   const solve = useCallback(
     (i: number) => {

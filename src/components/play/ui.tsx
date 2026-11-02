@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "./Icon";
+import { StarTotal } from "./OfflineProgress";
 
 export const toArabic = (n: number) => n.toLocaleString("ar-EG");
 /** Star counters use 0–9: the Arabic-Indic zero «٠» reads as a dot to young players. */
@@ -81,9 +82,9 @@ export function MapHead({
           </div>
         </details>
       )}
-      <Link href="/achievements" className="star-pill" aria-label={`نجومك: ${stars}`}>
+      <Link href="/achievements" className="star-pill" aria-label="نجومك">
         <Icon name="star" size={16} filled />
-        {starCount(stars)}
+        <StarTotal stars={stars} />
       </Link>
     </header>
   );

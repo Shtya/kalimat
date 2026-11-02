@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { GameShell } from "@/components/game/GameShell";
 import { getPublishedLevel } from "@/server/data/content";
 import { toGame } from "@/server/services/game";
+import { isOfflinePrefetch } from "@/server/services/offline";
 import { getJourney } from "@/server/services/progress";
 import { getCurrentStudent } from "@/server/services/student";
 
@@ -14,7 +15,7 @@ export default async function PlayPage({ params }: { params: Promise<{ levelId: 
   const level = await getPublishedLevel(levelId);
   if (!level || level.words.length === 0 || (level.audience !== "ALL" && level.audience !== student.track)) notFound();
   const journey = await getJourney(student);
-  if (!journey.levels.find((l) => l.id === level.id)?.unlocked) redirect(`/stages/${level.stage.id}`);
+  if (!journey.levels.find((l) => l.id === level.id)?.unlocked && !(await isOfflinePrefetch())) redirect(`/stages/${level.stage.id}`);
 
   return <GameShell key={level.id} data={toGame(level)} />;
 }

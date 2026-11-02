@@ -7,7 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "لعبة كلمات قرآنية تعليمية للأطفال والنشء",
     lang: "ar",
     dir: "rtl",
-    start_url: "/app",
+    // The journey (not /app, which redirects for signed-up students): a redirect can't be served from the offline cache.
+    start_url: "/journey",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

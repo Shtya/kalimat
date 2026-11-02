@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Icon } from "@/components/play/Icon";
+import { MapNode } from "@/components/play/MapNode";
 import { ScrollToFocus } from "@/components/play/ScrollToFocus";
 import { UnlockFx } from "@/components/play/UnlockFx";
-import { MapHead, Stars, toArabic } from "@/components/play/ui";
+import { MapHead, toArabic } from "@/components/play/ui";
 import { GAME_TYPE_LABEL } from "@/lib/format";
+import { isOfflinePrefetch } from "@/server/services/offline";
 import { getJourney } from "@/server/services/progress";
 import { getCurrentStudent } from "@/server/services/student";
 
@@ -22,7 +22,7 @@ export default async function StageMapPage({ params }: { params: Promise<{ id: s
   const station = journey.stations.find((s) => s.stages.some((st) => st.id === id));
   const stage = station?.stages.find((st) => st.id === id);
   if (!station || !stage) notFound();
-  if (!stage.unlocked) redirect(`/stations/${station.id}`);
+  if (!stage.unlocked && !(await isOfflinePrefetch())) redirect(`/stations/${station.id}`);
   const levels = stage.levels;
   const totalStars = journey.levels.reduce((s, l) => s + l.stars, 0);
 
@@ -75,44 +75,19 @@ export default async function StageMapPage({ params }: { params: Promise<{ id: s
             {donePath && <path className="map-progress" d={donePath} pathLength={100} fill="none" stroke="#f5b82e" strokeWidth="7" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
           </svg>
 
-          {levels.map((level, i) => {
-            const isCurrent = level.id === journey.currentLevelId;
-            const state = !level.unlocked ? "is-locked" : level.completed ? "is-done" : "is-current";
-            const label = `المستوى ${toArabic(i + 1)}: ${level.title}${level.unlocked ? "" : " — مقفول"}`;
-            const face = !level.unlocked ? <Icon name="lock" size={20} /> : isCurrent ? <Icon name="play" size={24} filled /> : toArabic(i + 1);
-            return (
-              <div
-                key={level.id}
-                className={`map-node ${state} ${points[i].x >= 50 ? "title-left" : "title-right"}`}
-                style={{ left: `${points[i].x}%`, top: points[i].y }}
-                data-focus={level.id === focusId ? "" : undefined}
-                data-level-id={level.id}
-              >
-                {isCurrent && <span className="here-flag">ابدأ هنا</span>}
-                {isCurrent && (
-                  <span className="node-lock" aria-hidden>
-                    <Icon name="lock" size={20} />
-                  </span>
-                )}
-                {level.unlocked ? (
-                  <Link href={`/play/${level.id}`} className="node-btn" aria-label={label}>
-                    {face}
-                  </Link>
-                ) : (
-                  <span className="node-btn" aria-label={label} role="img">
-                    {face}
-                  </span>
-                )}
-                {level.completed && <Stars count={level.stars} size={14} />}
-                <span className="node-title">
-                  {level.title}
-                  <small>
-                    {GAME_TYPE_LABEL[level.type].icon} {GAME_TYPE_LABEL[level.type].name}
-                  </small>
-                </span>
-              </div>
-            );
-          })}
+          {levels.map((level, i) => (
+            <MapNode
+              key={level.id}
+              id={level.id}
+              number={i + 1}
+              title={level.title}
+              kind={`${GAME_TYPE_LABEL[level.type].icon} ${GAME_TYPE_LABEL[level.type].name}`}
+              x={points[i].x}
+              y={points[i].y}
+              stars={level.stars}
+              focus={level.id === focusId}
+            />
+          ))}
           <ScrollToFocus />
           <UnlockFx />
         </div>

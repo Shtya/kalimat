@@ -46,7 +46,52 @@ export function forgetStudent() {
   } catch {}
 }
 
-export type SendResult = { status: "sent"; data: unknown } | { status: "queued" } | { status: "rejected"; error: string };
+// ── Levels finished on this device that the server hasn't confirmed yet (levelId → stars) ──
+// They unlock the next level right away, offline included; the layout drops them once the server has them.
+const DONE_KEY = "offlineDone";
+const DONE_EVENT = "kq:done";
+const NONE: Record<string, number> = {};
+let doneRaw: string | null = null;
+let doneCache = NONE;
+
+/** Stable snapshot for useSyncExternalStore. */
+export function localDone(): Record<string, number> {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(DONE_KEY);
+  } catch {}
+  if (raw !== doneRaw) {
+    doneRaw = raw;
+    try {
+      doneCache = raw ? JSON.parse(raw) : NONE;
+    } catch {
+      doneCache = NONE;
+    }
+  }
+  return doneCache;
+}
+function writeDone(next: Record<string, number>) {
+  try {
+    localStorage.setItem(DONE_KEY, JSON.stringify(next));
+  } catch {}
+  window.dispatchEvent(new Event(DONE_EVENT));
+}
+export function markDone(levelId: string, stars: number) {
+  const done = localDone();
+  writeDone({ ...done, [levelId]: Math.max(stars, done[levelId] ?? 0) });
+}
+export function forgetDone(levelIds: string[]) {
+  const done = localDone();
+  if (!levelIds.some((id) => id in done)) return;
+  writeDone(Object.fromEntries(Object.entries(done).filter(([id]) => !levelIds.includes(id))));
+}
+export function subscribeDone(cb: () => void) {
+  window.addEventListener(DONE_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => (window.removeEventListener(DONE_EVENT, cb), window.removeEventListener("storage", cb));
+}
+
+export type SendResult ={ status: "sent"; data: unknown } | { status: "queued" } | { status: "rejected"; error: string };
 
 async function send(item: PendingAttempt): Promise<SendResult> {
   try {
@@ -72,6 +117,7 @@ export async function submitAttempt(item: PendingAttempt): Promise<SendResult> {
   write([...read().filter((i) => i.clientAttemptId !== item.clientAttemptId), item]);
   const result = await send(item);
   if (result.status !== "queued") write(read().filter((i) => i.clientAttemptId !== item.clientAttemptId));
+  if (result.status === "rejected") forgetDone([item.levelId]);
   return result;
 }
 
@@ -87,6 +133,7 @@ export async function flushQueue(): Promise<number> {
       if (result.status === "queued") break; // still offline
       write(read().filter((i) => i.clientAttemptId !== item.clientAttemptId));
       if (result.status === "sent") sent++;
+      else forgetDone([item.levelId]); // the server refused it, so it doesn't count as finished
     }
   } finally {
     flushing = false;
