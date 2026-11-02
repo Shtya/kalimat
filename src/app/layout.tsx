@@ -30,7 +30,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" className={baloo.variable}>
+    // The landing page adds `lp-js` here before hydration (see (marketing)/layout.tsx).
+    <html lang="ar" dir="rtl" className={baloo.variable} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

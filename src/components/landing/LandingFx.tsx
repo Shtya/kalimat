@@ -25,16 +25,22 @@ export function LandingFx() {
     };
 
     // ── Hero intro ──
-    const hero = document.querySelector<HTMLElement>(".lp-hero");
+    const hero = document.querySelector<HTMLElement & { __lpTimed?: boolean }>(".lp-hero");
     if (hero) {
       const ready = () => {
         hero.dataset.stage = "ready";
       };
       if (reduce) ready();
       else {
-        const t1 = setTimeout(() => (hero.dataset.stage = "word"), 250);
-        const t2 = setTimeout(ready, 3000);
-        cleanups.push(() => (clearTimeout(t1), clearTimeout(t2)));
+        // The boot script in (marketing)/layout.tsx already started the clock on a full page load.
+        if (!hero.__lpTimed) {
+          hero.__lpTimed = true;
+          const t1 = setTimeout(() => {
+            if (hero.dataset.stage === "intro") hero.dataset.stage = "word";
+          }, 250);
+          const t2 = setTimeout(ready, 3000);
+          cleanups.push(() => (clearTimeout(t1), clearTimeout(t2), (hero.__lpTimed = false)));
+        }
         // Any interaction skips straight to the playable state.
         const skip = () => {
           if (hero.dataset.stage !== "ready") ready();
@@ -82,6 +88,7 @@ export function LandingFx() {
     const rail = document.querySelector<HTMLElement>(".lp-path");
     const parallax = Array.from(document.querySelectorAll<HTMLElement>("[data-parallax]"));
     const cta = document.querySelector<HTMLElement>(".lp-mobile-cta");
+    const nav = document.querySelector<HTMLElement>(".lp-nav");
     let ticking = false;
     const update = () => {
       ticking = false;
@@ -106,6 +113,7 @@ export function LandingFx() {
           el.style.transform = `translate3d(0, ${offset.toFixed(1)}px, 0)`;
         }
       if (cta && hero) cta.classList.toggle("is-shown", hero.getBoundingClientRect().bottom < 0);
+      if (nav) nav.classList.toggle("is-scrolled", scrollY > 12);
     };
     const onScroll = () => {
       if (!ticking) {

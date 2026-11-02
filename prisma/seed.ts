@@ -13,7 +13,7 @@ async function seedAdmin() {
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
   if (!email || !password) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD must be set in .env");
-  if (password.length < 8) throw new Error("ADMIN_PASSWORD must be at least 8 characters");
+  if (password.length < 6) throw new Error("ADMIN_PASSWORD must be at least 6 characters");
   const passwordHash = await bcrypt.hash(password, 12);
   await db.admin.upsert({
     where: { email },

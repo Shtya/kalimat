@@ -20,6 +20,7 @@
   --l-line: #e1e8f5;
   --l-display: var(--font-kufi), var(--font-main), serif;
   --l-ease: cubic-bezier(0.2, 0.9, 0.3, 1);
+  --nav-h: 76px; /* the floating header: 10px offset + 56px bar + 10px breathing room */
   --l-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23f5b82e' stroke-opacity='.11' stroke-width='1.3'%3E%3Crect x='26' y='26' width='44' height='44'/%3E%3Crect x='26' y='26' width='44' height='44' transform='rotate(45 48 48)'/%3E%3C/g%3E%3C/svg%3E");
   min-height: 100dvh;
   background: var(--l-bg);
@@ -28,6 +29,9 @@
 }
 .lp ::selection {
   background: rgba(245, 184, 46, 0.45);
+}
+.lp [id] {
+  scroll-margin-top: calc(var(--nav-h) + 8px);
 }
 .lp :focus-visible {
   outline: 3px solid var(--l-gold);
@@ -137,20 +141,50 @@
   box-shadow: 0 4px 0 var(--l-gold-deep);
 }
 
-/* ───────────── Nav ───────────── */
+/* Ghost button for the dark header/hero: outlined glass, no gold */
+.lp-btn-ghost {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.22);
+}
+.lp-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
+}
+
+/* ───────────── Nav ─────────────
+   Floats over the hero so both share one sky; once the page scrolls it condenses into a glass capsule. */
 .lp-nav {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  inset: 0 0 auto;
   z-index: 30;
+  padding: 10px clamp(12px, 3vw, 32px) 0;
+  pointer-events: none;
+}
+.lp-nav-bar {
   display: flex;
   align-items: center;
   gap: 18px;
-  height: 66px;
-  padding: 0 clamp(16px, 4vw, 48px);
+  max-width: 1240px;
+  height: 56px;
+  margin: 0 auto;
+  padding-inline: 10px;
+  border-radius: 20px;
   color: #fff;
-  background: rgba(11, 33, 82, 0.82);
-  backdrop-filter: blur(16px) saturate(1.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: auto;
+  background: rgba(13, 37, 92, 0);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0);
+  transition:
+    background 0.35s ease,
+    box-shadow 0.35s ease,
+    backdrop-filter 0.35s ease;
+}
+.lp-nav.is-scrolled .lp-nav-bar {
+  background: rgba(13, 37, 92, 0.78);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 18px 40px -20px rgba(5, 16, 45, 0.75);
 }
 .lp-brand {
   display: inline-flex;
@@ -158,7 +192,8 @@
   gap: 10px;
   font-family: var(--l-display);
   font-weight: 700;
-  font-size: 1.25rem;
+  font-size: 1.22rem;
+  white-space: nowrap;
 }
 .lp-logo {
   display: grid;
@@ -177,33 +212,37 @@
 .lp-brand:hover .lp-logo {
   transform: rotate(6deg) scale(1.08);
 }
+/* section links sit in their own quiet pill, centred between brand and actions */
 .lp-links {
   display: flex;
-  gap: 4px;
-  margin-inline-start: auto;
+  gap: 2px;
+  margin-inline: auto;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 .lp-links a {
-  position: relative;
-  padding: 8px 12px;
+  padding: 7px 14px;
+  border-radius: 10px;
   font-weight: 700;
+  font-size: 0.95rem;
   color: #cddaff;
-  transition: color 0.2s;
-}
-.lp-links a::after {
-  content: "";
-  position: absolute;
-  inset: auto 12px 2px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--l-gold);
-  transform: scaleX(0);
-  transition: transform 0.3s var(--l-ease);
+  transition:
+    color 0.2s,
+    background 0.2s;
 }
 .lp-links a:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
-.lp-links a:hover::after {
-  transform: scaleX(1);
+.lp-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lp-nav-actions .lp-btn-sm {
+  gap: 8px;
 }
 
 /* ═════════════ Hero ═════════════ */
@@ -211,10 +250,11 @@
   --mx: 0;
   --my: 0;
   position: relative;
-  min-height: min(100svh - 66px, 940px);
+  min-height: min(100svh, 940px + var(--nav-h));
   display: grid;
   align-items: center;
-  padding: clamp(28px, 5vw, 64px) clamp(16px, 5vw, 72px) 150px;
+  /* the header floats over the hero, so the hero starts at the very top and pads for it */
+  padding: calc(var(--nav-h) + clamp(16px, 4vw, 48px)) clamp(16px, 5vw, 72px) 150px;
   color: #fff;
   background:
     radial-gradient(640px 420px at 18% 34%, rgba(245, 184, 46, 0.2), transparent 70%),
@@ -270,8 +310,8 @@
 .lp-intro {
   position: absolute;
   /* the first screen only, even when the hero is taller (stacked on phones) */
-  inset: 0 0 auto;
-  height: min(100%, calc(100svh - 66px));
+  inset: var(--nav-h) 0 auto;
+  height: min(100% - var(--nav-h), 100svh - var(--nav-h));
   z-index: 2;
   display: grid;
   place-content: center;
@@ -364,10 +404,19 @@
 .lp-js .lp-hero:not([data-stage="ready"]) .lp-hero-text {
   opacity: 0;
   transform: translateY(30px);
+  animation: lp-hero-failsafe 0.6s ease 4.5s forwards;
 }
 .lp-js .lp-hero:not([data-stage="ready"]) .lp-hero-demo {
   opacity: 0;
   transform: translateY(60px) scale(0.92) rotate(3deg);
+  animation: lp-hero-failsafe 0.6s ease 4.5s forwards;
+}
+/* if scripts never get to mark the hero ready, show the content anyway */
+@keyframes lp-hero-failsafe {
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .lp-hero[data-stage="ready"] .lp-hero-demo {
   transition-delay: 0.18s;
@@ -652,8 +701,8 @@
 }
 .story-sticky {
   position: sticky;
-  top: 66px;
-  height: calc(100svh - 66px);
+  top: var(--nav-h);
+  height: calc(100svh - var(--nav-h));
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
@@ -1475,8 +1524,16 @@
   .lp-links {
     display: none;
   }
-  .lp-nav .lp-btn-sm {
+  .lp-nav-actions {
     margin-inline-start: auto;
+  }
+  /* dashboard becomes an icon button; the student CTA keeps its words */
+  .lp-nav-label {
+    display: none;
+  }
+  .lp-nav-actions .lp-btn-ghost {
+    min-width: 42px;
+    padding: 0;
   }
   .lp-numbers {
     grid-template-columns: repeat(2, 1fr);
@@ -1527,6 +1584,17 @@
   .lp-nav .lp-btn-sm {
     width: auto;
   }
+  .lp-nav-bar {
+    gap: 10px;
+    padding-inline: 6px;
+  }
+  .lp-brand {
+    font-size: 1.05rem;
+    gap: 8px;
+  }
+  .lp-nav-actions .lp-btn-gold {
+    padding: 0 14px;
+  }
   .lp-hero h1 {
     font-size: 1.95rem;
   }
@@ -1543,6 +1611,11 @@
   }
   .lp-intro {
     display: none;
+  }
+  .lp-js .lp-hero:not([data-stage="ready"]) .lp-hero-text,
+  .lp-js .lp-hero:not([data-stage="ready"]) .lp-hero-demo {
+    opacity: 1;
+    transform: none;
   }
   .sky-tile i,
   .phone.is-hero,

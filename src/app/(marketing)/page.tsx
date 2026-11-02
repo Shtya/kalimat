@@ -81,25 +81,36 @@ export default function LandingPage() {
         <style>{`.lp-hero .lp-hero-text, .lp-hero .lp-hero-demo { opacity: 1 !important; transform: none !important; } .lp-intro { display: none !important; }`}</style>
       </noscript>
 
+      {/* Floats over the hero; turns into a glass bar once the page scrolls (is-scrolled, see LandingFx) */}
       <header className="lp-nav">
-        <Link href="/" className="lp-brand" aria-label="كلمات قرآنية">
-          <span className="lp-logo" aria-hidden>
-            ك
-          </span>
-          كلمات قرآنية
-        </Link>
-        <nav className="lp-links" aria-label="أقسام الصفحة">
-          <a href="#story">التطبيق</a>
-          <a href="#path">المنهج</a>
-          <a href="#teacher">لوحة المدرس</a>
-        </nav>
-        <a href={wa} className="lp-btn lp-btn-gold lp-btn-sm" data-magnetic {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
-          <Icon name="whatsapp" size={18} /> تواصل معنا
-        </a>
+        <div className="lp-nav-bar">
+          <Link href="/" className="lp-brand" aria-label="كلمات قرآنية">
+            <span className="lp-logo" aria-hidden>
+              ك
+            </span>
+            كلمات قرآنية
+          </Link>
+          <nav className="lp-links" aria-label="أقسام الصفحة">
+            <a href="#story">التطبيق</a>
+            <a href="#path">المنهج</a>
+            <a href="#teacher">لوحة المدرس</a>
+            <a href="#contact">تواصل معنا</a>
+          </nav>
+          <div className="lp-nav-actions">
+            <Link href="/admin/login" className="lp-btn lp-btn-ghost lp-btn-sm" aria-label="دخول لوحة التحكم">
+              <Icon name="chart" size={18} />
+              <span className="lp-nav-label">لوحة التحكم</span>
+            </Link>
+            <Link href="/app" className="lp-btn lp-btn-gold lp-btn-sm" data-magnetic>
+              <Icon name="play" size={16} filled /> ابدأ كطالب
+            </Link>
+          </div>
+        </div>
       </header>
 
       {/* ───── Hero: letters gather into «اقرأ», then become the playable wheel ───── */}
-      <section className="lp-hero" data-stage="intro">
+      {/* data-stage is advanced by the boot script before hydration, hence suppressHydrationWarning */}
+      <section className="lp-hero" data-stage="intro" suppressHydrationWarning>
         <div className="lp-sky" aria-hidden>
           {sky.map((t, i) => (
             <span key={i} className="sky-tile" style={{ "--x": `${t.x}%`, "--y": `${t.y}%`, "--z": t.z, "--d": `${t.d}s`, "--r": `${t.r}deg` } as React.CSSProperties}>

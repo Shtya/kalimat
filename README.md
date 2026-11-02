@@ -8,7 +8,7 @@ Next.js 15 (App Router) + TypeScript + PostgreSQL/Prisma، في تطبيق وا�
 
 ```bash
 npm install
-cp .env.example .env        # DATABASE_URL + ADMIN_EMAIL / ADMIN_PASSWORD (٨ أحرف على الأقل)
+cp .env.example .env        # DATABASE_URL + ADMIN_EMAIL / ADMIN_PASSWORD (٦ أحرف على الأقل)
 npm run db:deploy           # إنشاء الجداول
 npm run db:seed             # المحطات والمراحل والسور الـ114 + أدمن + 6 مستويات نموذجية في المرحلة 1
 npm run dev                 # http://localhost:3000  — لوحة المدرس على /admin
