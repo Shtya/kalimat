@@ -30,4 +30,14 @@ export const GAME_TYPE_LABEL = {
   MISSING_LETTER: { name: "أكمل الكلمة", icon: "🧩", help: "تظهر الكلمة ناقصة حرفًا أو أكثر، ويختار الطالب الحرف الصحيح." },
 } as const;
 export const STATUS_LABEL = { DRAFT: "مسودة", PUBLISHED: "منشور" } as const;
+/** Arabic counted noun: 1 طالب واحد · 2 طالبان · 3–10 طلاب · 11+ طالبًا. */
+export function count(n: number, [one, two, few, many]: [string, string, string, string]): string {
+  if (n === 1) return `${one} واحد`;
+  if (n === 2) return two;
+  return `${n} ${n % 100 >= 3 && n % 100 <= 10 ? few : many}`;
+}
+export const STUDENTS: [string, string, string, string] = ["طالب", "طالبان", "طلاب", "طالبًا"];
+export const QUESTIONS: [string, string, string, string] = ["سؤال", "سؤالان", "أسئلة", "سؤالًا"];
+export const ANSWERS: [string, string, string, string] = ["إجابة", "إجابتان", "إجابات", "إجابة"];
+
 export const stars = (n: number) => "★".repeat(n) + "☆".repeat(Math.max(0, 3 - n));

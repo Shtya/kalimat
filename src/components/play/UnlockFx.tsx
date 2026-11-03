@@ -1,6 +1,6 @@
 "use client";
 import { useEffect } from "react";
-import { sfx } from "@/lib/sound";
+import { preloadSounds, sfx } from "@/lib/sound";
 
 const KEY = "kq:justFinished";
 
@@ -17,6 +17,7 @@ export function rememberFinished(levelId: string, nextLevelId: string | null) {
  */
 export function UnlockFx() {
   useEffect(() => {
+    preloadSounds();
     let data: { levelId: string; nextLevelId: string | null; at: number } | null = null;
     try {
       data = JSON.parse(sessionStorage.getItem(KEY) ?? "null");
@@ -31,7 +32,7 @@ export function UnlockFx() {
     done.classList.add("is-just-done");
     if (next) {
       next.classList.add("is-unlocking");
-      timers.push(setTimeout(() => sfx.hint(), 900));
+      timers.push(setTimeout(() => sfx.unlock(), 900));
       timers.push(setTimeout(() => next.classList.remove("is-unlocking"), 2400));
     }
     timers.push(setTimeout(() => done.classList.remove("is-just-done"), 2400));

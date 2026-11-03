@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./admin.css";
+import "./admin-pages.css";
 
 export const metadata: Metadata = {
   title: { default: "لوحة التحكم", template: "%s · لوحة التحكم" },

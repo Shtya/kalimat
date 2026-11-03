@@ -23,6 +23,10 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   reactStrictMode: true,
+  // Metadata in <head> for every browser, not streamed into <body> after it (Next 15's default for dynamic pages).
+  // iOS reads <link rel="manifest"> and the apple-* tags from <head> when "Add to Home Screen" is tapped; when they
+  // came later it saved a plain bookmark that opened in Safari instead of the standalone app.
+  htmlLimitedBots: /.*/,
   // Excel uploads in the dashboard go through a server action (default limit is 1 MB).
   experimental: { serverActions: { bodySizeLimit: "6mb" } },
   // Old routes from before the curriculum restructure (cached PWA pages may still link to them).

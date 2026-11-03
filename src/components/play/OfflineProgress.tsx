@@ -1,6 +1,6 @@
 "use client";
-import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
-import { forgetDone, localDone, subscribeDone } from "@/lib/offline-queue";
+import { createContext, useContext, useMemo, useSyncExternalStore } from "react";
+import { localDone, subscribeDone } from "@/lib/offline-queue";
 
 type Server = { order: string[]; done: Set<string> };
 const Ctx = createContext<Server | null>(null);
@@ -12,10 +12,6 @@ const NONE: Record<string, number> = {};
  */
 export function OfflineProgressProvider({ order, done, children }: { order: string[]; done: string[]; children: React.ReactNode }) {
   const value = useMemo(() => ({ order, done: new Set(done) }), [order, done]);
-  // Once the server has a level, the local copy is no longer needed.
-  useEffect(() => {
-    forgetDone(Object.keys(localDone()).filter((id) => value.done.has(id)));
-  }, [value]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

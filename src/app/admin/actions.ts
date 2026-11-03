@@ -120,6 +120,7 @@ export async function importAction(_: ImportState, form: FormData): Promise<Impo
   const read = await readSheet(file);
   if ("error" in read) return { ...fail(read.error) };
   const parsed = parseRows(read.rows);
+  if (read.unknown.length) parsed.warnings.unshift({ row: 1, message: `أعمدة غير معروفة وسيتم تجاهلها: ${read.unknown.join("، ")}.` });
 
   const existing = new Set(
     (await db.level.findMany({ select: { order: true, stage: { select: { number: true } } } })).map((l) => `${l.stage.number}:${l.order}`),
@@ -181,7 +182,7 @@ export async function deleteLevel(id: string, stageId: string): Promise<ActionSt
     return dbError(e);
   }
   contentChanged();
-  redirect(`/admin/levels?stage=${stageId}`);
+  redirect(`/admin/content?stage=${stageId}`);
 }
 
 // ───────────── Students ─────────────

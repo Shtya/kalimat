@@ -1,4 +1,5 @@
 import "server-only";
+import { Readable } from "node:stream";
 import ExcelJS from "exceljs";
 import { GAME_TYPE_LABEL, DIFFICULTY_LABEL } from "@/lib/format";
 import { CURRICULUM } from "@/lib/quran/curriculum";
@@ -7,6 +8,7 @@ import { SURAHS } from "@/lib/quran/surahs";
 import { db } from "@/lib/db";
 import { AUDIENCE_OPTIONS, COLUMNS, DIFFICULTY_OPTIONS, KIND_OPTIONS, QUESTIONS_SHEET, TYPE_OPTIONS, type ColumnKey } from "./columns";
 import type { RawRow } from "./parse";
+import { SAMPLE_LEVELS, SAMPLE_STAGE } from "../../../prisma/seed-content";
 
 const norm = (v: string) => v.replace(/[ً-ٟ]/g, "").replace(/[()\s]/g, "").replace(/[أإآ]/g, "ا");
 
@@ -23,7 +25,8 @@ function cellText(cell: ExcelJS.Cell): string {
   return String(v);
 }
 
-export type ReadResult = { rows: RawRow[] } | { error: string };
+/** `unknown`: headers that match no column (ignored, reported as a warning). */
+export type ReadResult = { rows: RawRow[]; unknown: string[] } | { error: string };
 
 /** Reads the questions sheet (by header names, so column order does not matter). Accepts .xlsx and .csv. */
 export async function readSheet(file: File): Promise<ReadResult> {
@@ -31,12 +34,12 @@ export async function readSheet(file: File): Promise<ReadResult> {
   const buffer = Buffer.from(await file.arrayBuffer());
   try {
     if (file.name.toLowerCase().endsWith(".csv")) {
-      const { Readable } = await import("node:stream");
       await wb.csv.read(Readable.from(buffer.toString("utf8").replace(/^﻿/, "")));
     } else {
       await wb.xlsx.load(buffer as unknown as ArrayBuffer);
     }
-  } catch {
+  } catch (e) {
+    console.error("[import] could not read", file.name, e);
     return { error: "تعذّرت قراءة الملف. تأكد أنه ملف Excel ‎(.xlsx)‎ أو CSV سليم." };
   }
 
@@ -46,21 +49,28 @@ export async function readSheet(file: File): Promise<ReadResult> {
   // Find the header row within the first 5 rows.
   let headerRow = 0;
   const map = new Map<number, ColumnKey>();
+  const unknown: string[] = [];
   for (let r = 1; r <= Math.min(5, sheet.rowCount) && !headerRow; r++) {
     const found = new Map<number, ColumnKey>();
+    const others: string[] = [];
     sheet.getRow(r).eachCell((cell, col) => {
-      const h = norm(cellText(cell));
+      const raw = cellText(cell).trim();
+      const h = norm(raw);
       const column = COLUMNS.find((c) => norm(c.header) === h || c.aliases?.some((a) => norm(a) === h) || c.key === h.toLowerCase());
-      if (column) found.set(col, column.key);
+      if (!column) {
+        if (raw) others.push(raw);
+      } else if ([...found.values()].includes(column.key)) others.push(`${raw} (مكرر)`);
+      else found.set(col, column.key);
     });
     if (found.size >= 5) {
       headerRow = r;
       found.forEach((k, col) => map.set(col, k));
+      unknown.push(...others);
     }
   }
   if (!headerRow) return { error: "لم أجد صف العناوين. استخدم القالب الجاهز من زر «تنزيل القالب» ولا تغيّر أسماء الأعمدة." };
   const missing = COLUMNS.filter((c) => c.required && ![...map.values()].includes(c.key));
-  if (missing.length) return { error: `أعمدة ناقصة: ${missing.map((c) => c.header).join("، ")}.` };
+  if (missing.length) return { error: `أعمدة ناقصة في صف العناوين: ${missing.map((c) => `«${c.header}»`).join("، ")}. أضفها بنفس الاسم كما في القالب.` };
 
   const rows: RawRow[] = [];
   for (let r = headerRow + 1; r <= sheet.rowCount; r++) {
@@ -70,7 +80,7 @@ export async function readSheet(file: File): Promise<ReadResult> {
     rows.push({ row: r, cells });
   }
   if (rows.length > 5000) return { error: "الملف أكبر من 5000 صف. قسّمه على أكثر من ملف." };
-  return { rows };
+  return { rows, unknown };
 }
 
 // ───────────── Template / export ─────────────
@@ -181,6 +191,32 @@ export async function buildExport(stageNumber?: number): Promise<Buffer> {
       fact: w.fact,
       kind: KIND_LABEL[w.kind].name,
       quran: w.quranText,
+    })),
+  );
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "كلمات قرآنية";
+  questionsSheet(wb, rows);
+  referenceSheets(wb);
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+/** A ready, valid example (the sample stage-1 levels): upload it as-is to see a full import, or copy its rows. */
+export async function buildDemo(): Promise<Buffer> {
+  const rows: ExportRow[] = SAMPLE_LEVELS.flatMap((l, li) =>
+    l.items.map((w, i) => ({
+      stage: SAMPLE_STAGE,
+      level: li + 1,
+      title: i === 0 ? l.title : null,
+      type: i === 0 ? GAME_TYPE_LABEL[l.type].name : null,
+      difficulty: i === 0 ? DIFFICULTY_LABEL[l.difficulty] : null,
+      audience: i === 0 ? AUDIENCE_LABEL.ALL : null,
+      surah: SURAHS[w.surah - 1].name,
+      ayah: w.ayah,
+      word: w.text,
+      hint: w.hint,
+      fact: w.fact,
+      kind: KIND_LABEL[w.kind].name,
+      quran: null,
     })),
   );
   const wb = new ExcelJS.Workbook();

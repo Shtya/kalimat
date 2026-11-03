@@ -157,17 +157,18 @@ model Word {
 }
 
 model Student {
-  id           String       @id @default(cuid())
+  id           String          @id @default(cuid())
   name         String
   track        AgeTrack
-  anonymousId  String       @unique
+  anonymousId  String          @unique
   /// Optional recovery contact. Nulls stay unique-safe so many students can skip this.
-  phone        String?      @unique
-  email        String?      @unique
-  createdAt    DateTime     @default(now())
-  lastActiveAt DateTime     @default(now())
+  phone        String?         @unique
+  email        String?         @unique
+  createdAt    DateTime        @default(now())
+  lastActiveAt DateTime        @default(now())
   progress     Progress[]
   results      ItemResult[]
+  synced       SyncedAttempt[]
 
   @@index([track, lastActiveAt])
   @@index([lastActiveAt])
@@ -236,4 +237,17 @@ model AdminSession {
   admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
+}
+
+/// Every attempt already stored, by the id the app gave it: an offline re-send, or two sends of the same
+/// result at once, is counted once (Progress.lastAttemptId only remembers the latest one).
+model SyncedAttempt {
+  /// The clientAttemptId (uuid) sent by the app.
+  id        String   @id
+  studentId String
+  levelId   String
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
 }

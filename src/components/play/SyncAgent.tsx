@@ -1,10 +1,12 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { flushQueue, forgetStudent, rememberStudent, storedStudentId } from "@/lib/offline-queue";
+import { flushQueue, forgetStudent, pendingCount, rememberStudent, storedStudentId } from "@/lib/offline-queue";
 
 const WARM_KEY = "offlineWarm";
 const WARM_EVERY = 30 * 60_000;
+/** While results are waiting, try again this often (the `online` event is not reliable on every phone). */
+const RETRY_EVERY = 45_000;
 
 /**
  * While online, asks the service worker to download the pages around the student's current level (and
@@ -19,9 +21,12 @@ async function warmOffline(progressKey: number, force = false) {
   if (!res?.ok) return;
   const { urls } = (await res.json()) as { urls: string[] };
   const stamp = `${progressKey}|${urls.length}`;
+  // A new service worker version starts with empty caches: download again at once. The current level is
+  // only ever saved by this download (the journey is also saved just by opening it, so it can't tell).
+  const copy = await caches.match(urls.find((u) => u.startsWith("/play/")) ?? "/journey").catch(() => undefined);
   try {
     const [last, at] = (localStorage.getItem(WARM_KEY) ?? "").split("@");
-    if (!force && last === stamp && Date.now() - Number(at) < WARM_EVERY) return;
+    if (!force && copy && last === stamp && Date.now() - Number(at) < WARM_EVERY) return;
     localStorage.setItem(WARM_KEY, `${stamp}@${Date.now()}`);
   } catch {}
   worker.postMessage({ type: "warm", urls });
@@ -62,11 +67,22 @@ export function SyncAgent({ anonymousId, progressKey }: { anonymousId: string | 
       if ((await flushQueue()) > 0 && !cancelled) router.refresh();
     }
     void run();
-    const onOnline = () => void flushQueue().then((n) => n > 0 && router.refresh());
-    window.addEventListener("online", onOnline);
+    const flush = () => {
+      if (!anonymousId || !navigator.onLine || pendingCount() === 0) return;
+      void flushQueue().then((n) => n > 0 && !cancelled && router.refresh());
+    };
+    // Back online, back to the app (iOS often skips `online` for a suspended home-screen app), or periodically.
+    const onVisible = () => document.visibilityState === "visible" && flush();
+    const timer = window.setInterval(flush, RETRY_EVERY);
+    window.addEventListener("online", flush);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", flush);
     return () => {
       cancelled = true;
-      window.removeEventListener("online", onOnline);
+      window.clearInterval(timer);
+      window.removeEventListener("online", flush);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", flush);
     };
   }, [anonymousId, router]);
 
@@ -77,8 +93,14 @@ export function SyncAgent({ anonymousId, progressKey }: { anonymousId: string | 
     // first install: the worker becomes active a moment after registering
     void navigator.serviceWorker?.ready.then(start);
     const onOnline = () => void warmOffline(progressKey, true);
+    // A new worker version activated (and dropped the old caches).
+    const onWorker = (e: MessageEvent) => e.data?.type === "activated" && onOnline();
     window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    navigator.serviceWorker?.addEventListener("message", onWorker);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      navigator.serviceWorker?.removeEventListener("message", onWorker);
+    };
   }, [anonymousId, progressKey]);
 
   return null;

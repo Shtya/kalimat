@@ -17,5 +17,9 @@ export default async function PlayPage({ params }: { params: Promise<{ levelId: 
   const journey = await getJourney(student);
   if (!journey.levels.find((l) => l.id === level.id)?.unlocked && !(await isOfflinePrefetch())) redirect(`/stages/${level.stage.id}`);
 
-  return <GameShell key={level.id} data={toGame(level)} />;
+  const station = journey.stations.find((st) => st.stages.some((sg) => sg.levels.some((l) => l.id === level.id)));
+  const endsStation = station?.stages.flatMap((sg) => sg.levels).at(-1)?.id === level.id;
+  const game = toGame(level);
+
+  return <GameShell key={level.id} data={{ ...game, meta: { ...game.meta, endsStation } }} />;
 }

@@ -80,6 +80,51 @@ button {
   cursor: pointer;
 }
 
+/* ───────────── Scrollbars: one style everywhere, coloured by the area you're in ─────────────
+   Each area sets --sb-* on its root (dashboard: .adm, app: .kid, landing: .lp; a dark panel overrides
+   them locally). The page scrollbar belongs to <html>, so it picks the area's colours through :has().
+   A dark theme only needs to redefine these three tokens. */
+:root {
+  --sb-thumb: #c9c0a8;
+  --sb-thumb-hover: #a99f84;
+  --sb-track: transparent;
+}
+:root:has(.adm) {
+  --sb-thumb: #c3cfe3;
+  --sb-thumb-hover: #9fb0cf;
+}
+:root:has(.kid) {
+  --sb-thumb: #c4d2ec;
+  --sb-thumb-hover: #93abd9;
+}
+:root:has(.lp) {
+  --sb-thumb: #b4c5e6;
+  --sb-thumb-hover: #1b4da8;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) var(--sb-track);
+}
+/* Safari / older Chromium (they ignore scrollbar-color). */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--sb-track);
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 99px;
+  background: var(--sb-thumb) padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sb-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 :focus-visible {
   outline: 3px solid var(--sky);
   outline-offset: 3px;

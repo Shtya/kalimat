@@ -8,6 +8,14 @@
   --adm-ink: #0e2350;
   --adm-muted: #6b7a96;
   --adm-line: #e3e9f3;
+  --adm-line-strong: #cfd9ea;
+  --adm-surface: #ffffff;
+  --adm-accent: #1f63c6;
+  --adm-accent-soft: #eaf1fc;
+  /* Scrollbar follows the area it is in (see globals.css). */
+  --sb-thumb: #c3cfe3;
+  --sb-thumb-hover: #9fb0cf;
+  --sb-track: transparent;
   min-height: 100dvh;
   display: grid;
   grid-template-columns: 252px 1fr;
@@ -27,6 +35,9 @@
   flex-direction: column;
   gap: 4px;
   overflow-y: auto;
+  /* Dark sidebar → light thumb. */
+  --sb-thumb: rgba(255, 255, 255, 0.18);
+  --sb-thumb-hover: rgba(255, 255, 255, 0.32);
 }
 .adm-brand {
   white-space: nowrap;
@@ -427,16 +438,6 @@
 .msg-ok {
   color: var(--mint-deep);
 }
-.filters {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  margin-bottom: 14px;
-}
-.filters .fld {
-  min-width: 180px;
-}
 
 /* Custom dropdown — replaces the native select */
 .dd {
@@ -530,19 +531,6 @@
   .word-card .form-row {
     grid-template-columns: 1fr 1fr;
   }
-}
-details.inline-edit > summary {
-  list-style: none;
-  cursor: pointer;
-}
-details.inline-edit > summary::-webkit-details-marker {
-  display: none;
-}
-details.inline-edit[open] {
-  padding: 12px;
-  border-radius: 14px;
-  background: #fafbff;
-  border: 1px solid var(--line);
 }
 .pager {
   display: flex;
@@ -638,32 +626,6 @@ details.inline-edit[open] {
 }
 
 /* ───────────── Curriculum, import, insights ───────────── */
-.station-panel {
-  border-inline-start: 6px solid var(--c, var(--primary));
-}
-.stage-picker {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-.stage-picker-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-.stage-picker-row > span {
-  min-width: 42px;
-  font-weight: 800;
-}
-.howto {
-  margin: 0;
-  padding-inline-start: 20px;
-  display: grid;
-  gap: 6px;
-  color: var(--ink-soft);
-  font-size: 0.92rem;
-}
 .upload-box {
   position: relative;
   display: block;
@@ -691,48 +653,6 @@ details.inline-edit[open] {
 }
 .upload-box small {
   color: var(--muted);
-}
-.import-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  padding: 12px;
-  border-radius: 14px;
-  background: #e8f6ee;
-  font-weight: 700;
-}
-.import-summary span {
-  padding: 2px 10px;
-  border-radius: 99px;
-  background: #fff;
-}
-.issues {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #fdecee;
-  border: 1px solid #f6c5cb;
-  font-size: 0.9rem;
-}
-.issues-warn {
-  background: #fff7e3;
-  border-color: #f1dca2;
-}
-.issues ul {
-  margin: 8px 0 0;
-  padding-inline-start: 18px;
-  display: grid;
-  gap: 4px;
-  max-height: 340px;
-  overflow: auto;
-}
-.issue-row {
-  display: inline-block;
-  padding: 0 8px;
-  border-radius: 8px;
-  background: #fff;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
 }
 .meter {
   display: inline-flex;

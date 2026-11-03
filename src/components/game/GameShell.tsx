@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameData, GameType } from "@/lib/games/types";
 import { markDone, submitAttempt } from "@/lib/offline-queue";
 import { scoreAttempt } from "@/lib/scoring";
-import { sfx } from "@/lib/sound";
+import { preloadSounds, sfx } from "@/lib/sound";
 import { Icon } from "@/components/play/Icon";
 import { useProgress } from "@/components/play/OfflineProgress";
 import { rememberFinished } from "@/components/play/UnlockFx";
@@ -52,7 +52,9 @@ const fmt = (s: number) => ar(`${Math.floor(s / 60)}:${String(s % 60).padStart(2
 export function GameShell({ data, preview = false }: { data: GameData; preview?: boolean }) {
   const { meta, words } = data;
   const router = useRouter();
-  const { nextAfter } = useProgress();
+  const { nextAfter, isDone } = useProgress();
+  // Finishing a station is celebrated once: not when its last level is replayed.
+  const firstTime = useRef(!isDone(meta.id));
   const [found, setFound] = useState<boolean[]>(() => words.map(() => false));
   const [current, setCurrent] = useState(0);
   const [lastSolved, setLastSolved] = useState<number | null>(null);
@@ -83,6 +85,13 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
     attemptId.current = crypto.randomUUID();
   }, [runId]);
 
+  // «بسم الله» as the level opens (and on «العب مرة أخرى»). Only when the page already had a tap — opened
+  // from the map — since browsers keep sound off until then; a direct load stays quiet instead of warning.
+  useEffect(() => {
+    preloadSounds();
+    if (navigator.userActivation?.hasBeenActive !== false) sfx.start();
+  }, [runId]);
+
   useEffect(() => {
     if (phase !== "playing") return;
     const t = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -91,7 +100,9 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
 
   const finish = useCallback(async () => {
     const s = stats.current;
-    sfx.win();
+    if (meta.endsStation && firstTime.current) sfx.station();
+    else sfx.win();
+    firstTime.current = false;
     const local = scoreAttempt(meta.type, meta.difficulty, {
       wordCount: words.length,
       timeSpent: Math.max(1, s.seconds),
@@ -115,7 +126,7 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
     });
     if (res.status === "sent") {
       const d = res.data as { stars: number; score: number; nextLevelId: string | null };
-      markDone(meta.id, d.stars); // shown at once; dropped when the refreshed journey has it
+      markDone(meta.id, d.stars); // unlocks the next level at once, offline copies of the map included
       setResult({ stars: d.stars, score: d.score, nextLevelId: d.nextLevelId, offline: false });
       rememberFinished(meta.id, d.nextLevelId); // the map plays the unlock moment on return
       router.refresh(); // updates the star counter in the header

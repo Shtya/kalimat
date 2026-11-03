@@ -86,10 +86,12 @@ const mastery = (answered: number, correct: number): Mastery => ({ answered, cor
 type LatestResult = { studentId: string; wordId: string; correct: boolean; kind: Kind; surahNumber: number | null; stageId: string };
 
 /** The latest result of each (student, question) pair — retries replace older answers. */
-async function latestResults(filter: { track?: Track; studentId?: string }): Promise<LatestResult[]> {
+async function latestResults(filter: { track?: Track; studentId?: string; studentIds?: string[] }): Promise<LatestResult[]> {
+  if (filter.studentIds && filter.studentIds.length === 0) return [];
   const conditions = [Prisma.sql`TRUE`];
   if (filter.track) conditions.push(Prisma.sql`s."track"::text = ${filter.track}`);
   if (filter.studentId) conditions.push(Prisma.sql`r."studentId" = ${filter.studentId}`);
+  if (filter.studentIds) conditions.push(Prisma.sql`r."studentId" IN (${Prisma.join(filter.studentIds)})`);
   return db.$queryRaw<LatestResult[]>`
     SELECT DISTINCT ON (r."studentId", r."wordId")
       r."studentId", r."wordId", r."correct", w."kind"::text AS "kind", w."surahNumber", l."stageId"
@@ -119,7 +121,7 @@ function groupMastery<K extends string | number>(rows: LatestResult[], key: (r: 
 export async function getKnowledge(filter: { track?: Track; studentId?: string }) {
   const rows = await latestResults(filter);
   return {
-    overall: mastery(rows.length, rows.filter((r) => r.correct).length),
+    overall: { ...mastery(rows.length, rows.filter((r) => r.correct).length), students: new Set(rows.map((r) => r.studentId)).size },
     byStage: groupMastery(rows, (r) => r.stageId),
     bySurah: groupMastery(rows, (r) => r.surahNumber),
     byKind: groupMastery(rows, (r) => r.kind),
@@ -146,40 +148,112 @@ export async function getHardestQuestions(filter: { track?: Track }, min = 3, ta
 
 export const STUDENTS_PAGE_SIZE = 20;
 
-export async function listStudents(opts: { q?: string; track?: Track; page?: number }) {
-  const where: Prisma.StudentWhereInput = {
+export const STUDENT_STATUSES = ["active", "idle", "new"] as const;
+export type StudentStatus = (typeof STUDENT_STATUSES)[number];
+export const STUDENT_SORTS = ["recent", "joined", "progress", "name"] as const;
+export type StudentSort = (typeof STUDENT_SORTS)[number];
+
+const WEEK = 7 * 86_400_000;
+
+/** active: played this week · idle: no play for a week or more · new: signed up but finished no level yet. */
+function statusWhere(status: StudentStatus | undefined): Prisma.StudentWhereInput {
+  const weekAgo = new Date(Date.now() - WEEK);
+  if (status === "active") return { lastActiveAt: { gte: weekAgo }, progress: { some: { completedAt: { not: null } } } };
+  if (status === "idle") return { lastActiveAt: { lt: weekAgo }, progress: { some: { completedAt: { not: null } } } };
+  if (status === "new") return { progress: { none: { completedAt: { not: null } } } };
+  return {};
+}
+
+const ORDER: Record<StudentSort, Prisma.StudentOrderByWithRelationInput[]> = {
+  recent: [{ lastActiveAt: "desc" }],
+  joined: [{ createdAt: "desc" }],
+  progress: [{ progress: { _count: "desc" } }, { lastActiveAt: "desc" }],
+  name: [{ name: "asc" }],
+};
+
+export type StudentFilter = { q?: string; track?: Track; status?: StudentStatus; sort?: StudentSort };
+
+function studentWhere(opts: StudentFilter): Prisma.StudentWhereInput {
+  return {
     ...(opts.track ? { track: opts.track } : {}),
     ...(opts.q ? { name: { contains: opts.q, mode: "insensitive" } } : {}),
+    ...statusWhere(opts.status),
   };
+}
+
+/** Published levels a student of each track can play (the denominator of their progress bar). */
+async function levelsPerTrack(): Promise<Record<Track, number>> {
+  const [child, youth] = await Promise.all(
+    (["CHILD", "YOUTH"] as const).map((t) => db.level.count({ where: { status: "PUBLISHED", audience: { in: ["ALL", t] }, stage: { status: "PUBLISHED", station: { status: "PUBLISHED" } } } })),
+  );
+  return { CHILD: child, YOUTH: youth };
+}
+
+/** Totals with completed levels, stars, score and mastery for a set of students. */
+async function studentTotals(ids: string[]) {
+  const [totals, results] = await Promise.all([
+    db.progress.groupBy({
+      by: ["studentId"],
+      where: { studentId: { in: ids }, completedAt: { not: null } },
+      _sum: { stars: true, score: true },
+      _count: { _all: true },
+    }),
+    latestResults({ studentIds: ids }),
+  ]);
+  const byStudent = new Map(totals.map((x) => [x.studentId, x]));
+  const mastered = groupMastery(results, (r) => r.studentId);
+  return (id: string) => ({
+    completed: byStudent.get(id)?._count._all ?? 0,
+    stars: byStudent.get(id)?._sum.stars ?? 0,
+    score: byStudent.get(id)?._sum.score ?? 0,
+    mastery: mastered.get(id)?.pct ?? null,
+  });
+}
+
+export async function listStudents(opts: StudentFilter & { page?: number }) {
+  const where = studentWhere(opts);
   const page = Math.max(1, opts.page ?? 1);
-  const [total, rows] = await Promise.all([
+  const [total, rows, perTrack] = await Promise.all([
     db.student.count({ where }),
     db.student.findMany({
       where,
-      orderBy: { lastActiveAt: "desc" },
+      orderBy: ORDER[opts.sort ?? "recent"],
       skip: (page - 1) * STUDENTS_PAGE_SIZE,
       take: STUDENTS_PAGE_SIZE,
-      select: { id: true, name: true, track: true, lastActiveAt: true },
+      select: { id: true, name: true, track: true, lastActiveAt: true, createdAt: true },
     }),
+    levelsPerTrack(),
   ]);
-  const totals = await db.progress.groupBy({
-    by: ["studentId"],
-    where: { studentId: { in: rows.map((r) => r.id) }, completedAt: { not: null } },
-    _sum: { stars: true, score: true },
-    _count: { _all: true },
-  });
-  const t = new Map(totals.map((x) => [x.studentId, x]));
+  const totals = await studentTotals(rows.map((r) => r.id));
   return {
     total,
     page,
     pages: Math.max(1, Math.ceil(total / STUDENTS_PAGE_SIZE)),
-    rows: rows.map((r) => ({
-      ...r,
-      completed: t.get(r.id)?._count._all ?? 0,
-      stars: t.get(r.id)?._sum.stars ?? 0,
-      score: t.get(r.id)?._sum.score ?? 0,
-    })),
+    rows: rows.map((r) => ({ ...r, ...totals(r.id), available: perTrack[r.track] })),
   };
+}
+
+/** Headline counts for the students page (not affected by its filters). */
+export async function getStudentSummary() {
+  const counts = await Promise.all([
+    db.student.count(),
+    ...STUDENT_STATUSES.map((s) => db.student.count({ where: statusWhere(s) })),
+    db.student.count({ where: { track: "CHILD" } }),
+  ]);
+  const [total, active, idle, fresh, child] = counts;
+  return { total, active, idle, new: fresh, CHILD: child, YOUTH: total - child };
+}
+
+/** Every matching student with their totals, for the Excel export (names only, no contact details). */
+export async function exportStudents(opts: StudentFilter) {
+  const rows = await db.student.findMany({
+    where: studentWhere(opts),
+    orderBy: ORDER[opts.sort ?? "recent"],
+    take: 5000,
+    select: { id: true, name: true, track: true, lastActiveAt: true, createdAt: true },
+  });
+  const totals = await studentTotals(rows.map((r) => r.id));
+  return rows.map((r) => ({ ...r, ...totals(r.id) }));
 }
 
 export async function getStudentDetail(id: string) {

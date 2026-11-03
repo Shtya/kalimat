@@ -2,8 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionForm, SubmitButton } from "@/components/admin/ActionForm";
 import { Dropdown } from "@/components/admin/Dropdown";
+import { EmptyState, PageHead } from "@/components/admin/ui";
+import { Icon } from "@/components/play/Icon";
 import { db } from "@/lib/db";
-import { STATUS_LABEL } from "@/lib/format";
+import { GAME_TYPE_LABEL, STATUS_LABEL } from "@/lib/format";
+import { WORD_LIMITS } from "@/lib/scoring";
 import { KIND_LABEL, KINDS } from "@/lib/quran/labels";
 import { deleteLevel, deleteWord, saveLevel, saveWord } from "../../../actions";
 import { LevelFields } from "../LevelFields";
@@ -83,34 +86,37 @@ export default async function LevelEditPage({ params }: { params: Promise<{ id: 
   });
   if (!level) notFound();
   const surahs = level.stage.surahs.map((s) => s.surah);
+  const limits = WORD_LIMITS[level.type];
 
   return (
     <>
       <nav className="crumbs" aria-label="المسار">
-        <Link href="/admin/curriculum">المحطة {level.stage.station.order}</Link>/
-        <Link href={`/admin/levels?stage=${level.stage.id}`}>
+        <Link href="/admin/content">المنهج والأسئلة</Link>/
+        <Link href={`/admin/content?stage=${level.stage.id}`}>
           المرحلة {level.stage.number}: {level.stage.title}
         </Link>
         /<span>{level.title}</span>
       </nav>
-      <div className="adm-head">
-        <div>
-          <h1>
+      <PageHead
+        kicker={`المستوى ${level.order} · ${GAME_TYPE_LABEL[level.type].icon} ${GAME_TYPE_LABEL[level.type].name}`}
+        title={
+          <>
             {level.title} <span className={`badge badge-${level.status}`}>{STATUS_LABEL[level.status]}</span>
-          </h1>
-          <p>
-            {level.words.length} أسئلة · لعبه {level._count.progress} طالب
-          </p>
-        </div>
-        <div className="actions">
-          <Link href={`/admin/levels/${level.id}/preview`} className="abtn abtn-light">
-            👁️ معاينة المستوى
-          </Link>
-          <ActionForm action={deleteLevel.bind(null, level.id, level.stage.id)} confirm="حذف المستوى وكل أسئلته وتقدم الطلاب فيه؟">
-            <SubmitButton className="abtn abtn-danger">حذف المستوى</SubmitButton>
-          </ActionForm>
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <>
+            <Link href={`/admin/content?stage=${level.stage.id}`} className="abtn abtn-light">
+              <Icon name="forward" size={17} /> رجوع للمرحلة
+            </Link>
+            <Link href={`/admin/levels/${level.id}/preview`} className="abtn abtn-light">
+              <Icon name="eye" size={17} /> معاينة كما يراها الطالب
+            </Link>
+          </>
+        }
+      >
+        {level.words.length} من {limits.min}–{limits.max} أسئلة يحتاجها هذا الشكل · لعبه {level._count.progress} طالب. عدّل البيانات أو الأسئلة، ثم غيّر الحالة إلى «منشور» ليظهر للطلاب.
+      </PageHead>
 
       <section className="panel">
         <h2>بيانات المستوى</h2>
@@ -121,9 +127,20 @@ export default async function LevelEditPage({ params }: { params: Promise<{ id: 
       </section>
 
       <section className="panel">
-        <h2>الأسئلة</h2>
-        {level.words.map((w) => (
+        <div className="panel-head">
+          <div>
+            <h2>الأسئلة ({level.words.length})</h2>
+            <p>كل سؤال = كلمة يكوّنها الطالب + تلميح يقرؤه + معلومة تظهر بعد الحل.</p>
+          </div>
+        </div>
+        {level.words.length === 0 && (
+          <EmptyState icon="book" title="لا توجد أسئلة في هذا المستوى">
+            أضف أول سؤال من النموذج بالأسفل، أو ارفع أسئلة المرحلة كلها من ملف Excel.
+          </EmptyState>
+        )}
+        {level.words.map((w, i) => (
           <div key={w.id} className="word-card">
+            <span className="word-num">سؤال {i + 1}</span>
             <ActionForm action={saveWord.bind(null, w.id)}>
               <input type="hidden" name="levelId" value={level.id} />
               <WordFields w={w} order={w.order} surahs={surahs} />
@@ -143,6 +160,16 @@ export default async function LevelEditPage({ params }: { params: Promise<{ id: 
         <p className="muted" style={{ fontSize: "0.85rem" }}>
           الكلمة: كلمة عربية واحدة بالرسم الإملائي بدون مسافات (٢–٩ حروف). التشكيل وعلامات المصحف تُزال تلقائيًا.
         </p>
+      </section>
+
+      <section className="panel danger-zone">
+        <div>
+          <h2>حذف المستوى</h2>
+          <p>يحذف المستوى وكل أسئلته وتقدم الطلاب فيه. لا يمكن التراجع.</p>
+        </div>
+        <ActionForm action={deleteLevel.bind(null, level.id, level.stage.id)} confirm="حذف المستوى وكل أسئلته وتقدم الطلاب فيه؟">
+          <SubmitButton className="abtn abtn-danger">حذف المستوى</SubmitButton>
+        </ActionForm>
       </section>
     </>
   );

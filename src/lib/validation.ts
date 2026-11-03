@@ -31,6 +31,8 @@ export const submitProgressSchema = z.object({
   hintsUsed: z.number().int().min(0).max(50),
   mistakes: z.number().int().min(0).max(500),
   wordsSolved: z.number().int().min(1).max(50),
+  /** When the level was finished (ms since epoch); results saved offline are sent later. */
+  playedAt: z.number().int().positive().optional(),
   /** Per-question outcome (optional so attempts queued by older app versions still sync). */
   items: z
     .array(z.object({ wordId: id, mistakes: z.number().int().min(0).max(100), hints: z.number().int().min(0).max(10) }))

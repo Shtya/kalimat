@@ -26,9 +26,9 @@ export default async function OverviewPage() {
       icon: "upload" as const,
       text: `المرحلة ${o.nextEmptyStage.number} بدون أسئلة`,
       action: "ارفع ملف Excel",
-      href: "/admin/import",
+      href: "/admin/content?panel=import",
     },
-    o.drafts > 0 && { icon: "book" as const, text: `${o.drafts} مستوى مسودة لم يُنشر`, action: "راجع المستويات", href: "/admin/levels" },
+    o.drafts > 0 && { icon: "book" as const, text: `${o.drafts} مستوى مسودة لم يُنشر`, action: "راجع المستويات", href: "/admin/content" },
     o.hardest && {
       icon: "alert" as const,
       text: `سؤال «${o.hardest.word.text}» يخطئ فيه ${100 - (o.hardest.pct ?? 0)}٪ من الطلاب`,
@@ -46,7 +46,7 @@ export default async function OverviewPage() {
           <p>{status}</p>
         </div>
         <div className="actions">
-          <Link href="/admin/import" className="abtn abtn-lg">
+          <Link href="/admin/content?panel=import" className="abtn abtn-lg">
             <Icon name="upload" size={20} /> رفع أسئلة Excel
           </Link>
         </div>
@@ -61,7 +61,7 @@ export default async function OverviewPage() {
           <span className="kpi-label">طالب مسجّل</span>
           <small>{o.activeThisWeek} لعبوا هذا الأسبوع</small>
         </Link>
-        <Link href="/admin/curriculum" className="kpi">
+        <Link href="/admin/content" className="kpi">
           <span className="kpi-icon is-gold">
             <Icon name="layers" />
           </span>
@@ -118,7 +118,7 @@ export default async function OverviewPage() {
               {st.stages.map((s) => (
                 <Link
                   key={s.id}
-                  href={`/admin/levels?stage=${s.id}`}
+                  href={`/admin/content?stage=${s.id}`}
                   className={`matrix-cell ${s.levels === 0 ? "is-empty" : `is-${tone(s.mastery?.pct ?? null)}`}`}
                   title={s.title}
                 >

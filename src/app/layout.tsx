@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description: "لعبة كلمات قرآنية للأطفال والنشء: اسحب الحروف، وتعلّم معاني القرآن وقصصه وقيمه سورةً سورة وفق منهج «نحو جيل قرآني».",
   applicationName: "كلمات قرآنية",
   appleWebApp: { capable: true, title: "كلمات قرآنية", statusBarStyle: "default" },
+  // Next 15 only emits the new `mobile-web-app-capable`; iOS before 16.4 needs the apple- one to open standalone.
+  other: { "apple-mobile-web-app-capable": "yes" },
   formatDetection: { telephone: false },
   icons: { icon: "/icons/192", apple: "/icons/180" },
 };

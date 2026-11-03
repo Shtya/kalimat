@@ -1,12 +1,18 @@
 // Hand-written service worker: cache-first for hashed static assets, sounds and icons,
-// network-first (with cached fallback) for pages, never caches the API.
+// network-first for pages (the cached copy answers when offline, or when the network is too slow), never caches the API.
 // While online the app also asks it to download the pages around the student's current level
 // (plus the scripts, styles and fonts they use), so the game keeps working with no internet.
-const VERSION = "v2";
+const VERSION = "v6";
 const STATIC = `static-${VERSION}`;
 const PAGES = `pages-${VERSION}`;
-const PRAISE = ["mashallah", "ahsant", "rae3", "mumtaz", "allahuakbar", "barakallah", "win1", "win2", "win3"].map((id) => `/sounds/praise/${id}.mp3`);
-const PRECACHE = ["/offline", "/manifest.webmanifest", "/icons/192", "/icons/512", ...PRAISE];
+/** Every game sound (~340 KB), so the game is never silent offline. Must match src/lib/sound.ts. */
+const SOUNDS = [
+  ...["mashallah", "ahsant", "rae3", "mumtaz", "allahuakbar", "barakallah", "win1", "win2", "win3", "bismillah", "unlock", "station"].map((id) => `/sounds/voice/${id}.mp3`),
+  ...["tap", "wrong", "hint", "unlock-fx"].map((id) => `/sounds/fx/${id}.mp3`),
+];
+const PRECACHE = ["/offline", "/manifest.webmanifest", "/icons/192", "/icons/512", ...SOUNDS];
+/** A page load waits this long for the network before showing the cached copy (it still updates in the background). */
+const NETWORK_TIMEOUT = 4000;
 /** Must match PREFETCH_HEADER in src/server/services/offline.ts. */
 const PREFETCH_HEADER = "x-kq-prefetch";
 
@@ -19,7 +25,10 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((k) => ![STATIC, PAGES].includes(k)).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      // The old copy is gone with the old caches: open pages ask for a new download (SyncAgent).
+      .then(() => self.clients.matchAll({ type: "window" }))
+      .then((clients) => clients.forEach((c) => c.postMessage({ type: "activated" }))),
   );
 });
 
@@ -56,23 +65,57 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res.ok && !res.redirected) {
-            const copy = res.clone();
-            caches.open(PAGES).then((c) => c.put(url.pathname, copy));
-          }
-          return res;
-        })
-        .catch(async () => (await caches.match(url.pathname, { cacheName: PAGES, ignoreVary: true })) || caches.match("/offline", { ignoreVary: true })),
-    );
+    const network = fetch(req).then(async (res) => {
+      if (res.ok && !res.redirected) {
+        const c = await caches.open(PAGES);
+        await c.put(url.pathname, res.clone());
+      }
+      return res;
+    });
+    event.waitUntil(network.catch(() => {}));
+    event.respondWith(fromNetworkOrCache(network, url.pathname));
   }
 });
 
+/**
+ * The saved copy of a page. «/app» is the sign-up screen, which a signed-up student is redirected away from;
+ * its saved copy may predate sign-up, so the journey's copy (only saved for a signed-up student) wins.
+ */
+async function cachedPage(path) {
+  const match = (p) => caches.match(p, { cacheName: PAGES, ignoreVary: true });
+  if (path === "/app") return (await match("/journey")) || match("/app");
+  return match(path);
+}
+
+/** Network first; the cached copy if the network fails, or is still silent after NETWORK_TIMEOUT. */
+function fromNetworkOrCache(network, path) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (res) => {
+      if (settled || !res) return false;
+      settled = true;
+      resolve(res);
+      return true;
+    };
+    const timer = setTimeout(() => cachedPage(path).then(finish), NETWORK_TIMEOUT);
+    network
+      .then((res) => {
+        clearTimeout(timer);
+        finish(res);
+      })
+      .catch(async () => {
+        clearTimeout(timer);
+        finish((await cachedPage(path)) || (await caches.match("/offline", { ignoreVary: true })) || Response.error());
+      });
+  });
+}
+
 // ── Offline download, requested by the app (SyncAgent) while online ──
 
-const ASSET = /\/_next\/static\/[^"'()\s\\]+/g;
+// Page chunks live under route groups like app/(play)/…, so parentheses are part of a path in HTML;
+// in CSS they close url(…), so stylesheets get their own pattern.
+const HTML_ASSET = /\/_next\/static\/[^"'\s\\<>]+/g;
+const CSS_ASSET = /\/_next\/static\/[^"'()\s\\]+/g;
 let warming = null;
 
 /** Downloads one page and everything it needs that isn't cached yet. */
@@ -81,7 +124,7 @@ async function warmPage(path, pages, statics, seen) {
   if (!res.ok) return;
   const html = await res.clone().text();
   await pages.put(path, await storable(res));
-  for (const asset of new Set(html.match(ASSET) || [])) {
+  for (const asset of new Set(html.match(HTML_ASSET) || [])) {
     if (seen.has(asset)) continue;
     seen.add(asset);
     if (await statics.match(asset)) continue;
@@ -90,7 +133,7 @@ async function warmPage(path, pages, statics, seen) {
     // Stylesheets point at fonts; fetch those too.
     if (asset.endsWith(".css")) {
       const css = await a.clone().text();
-      for (const font of new Set(css.match(ASSET) || [])) {
+      for (const font of new Set(css.match(CSS_ASSET) || [])) {
         if (seen.has(font) || (await statics.match(font))) continue;
         seen.add(font);
         const f = await fetch(font).catch(() => null);

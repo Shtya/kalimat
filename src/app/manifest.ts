@@ -9,6 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     dir: "rtl",
     // The journey (not /app, which redirects for signed-up students): a redirect can't be served from the offline cache.
     start_url: "/journey",
+    // Stable identity of the installed app (what browsers derived from start_url before; kept the same).
+    id: "/journey",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
@@ -16,6 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#1b4da8",
     categories: ["education", "games", "kids"],
     icons: [
+      { src: "/icons/180", sizes: "180x180", type: "image/png", purpose: "any" },
       { src: "/icons/192", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/512", sizes: "512x512", type: "image/png", purpose: "any" },
       { src: "/icons/maskable", sizes: "512x512", type: "image/png", purpose: "maskable" },

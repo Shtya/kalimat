@@ -27,6 +27,8 @@ export type GameMeta = {
   context: string;
   /** Where the back button and the result screen lead (the stage map). */
   backHref: string;
+  /** The last level of its station (for this student's track): finishing it completes the station. */
+  endsStation?: boolean;
 };
 
 export type Cell = [row: number, col: number];

@@ -71,3 +71,35 @@ test("a level whose rows failed does not also report a question-count error", ()
   assert.equal(r.errors.length, 2);
   assert.ok(!r.errors.some((e) => /يحتاج من/.test(e.message)));
 });
+
+test("duplicates: same answer twice in a level is an error; same question or answer elsewhere only warns", () => {
+  const q = (n: number, extra: RawRow["cells"]) => row(n, { ...base, hint: `سؤال ${n}`, fact: "معلومة.", ...extra });
+  const dup = parseRows([q(2, { word: "الدين" }), q(3, { word: "الدِّين" })]);
+  assert.equal(dup.errors.length, 1);
+  assert.match(dup.errors[0].message, /مكررة في نفس المستوى \(أول مرة في صف 2\)/);
+  assert.equal(dup.errors[0].row, 3);
+  assert.equal(dup.errors[0].column, "الكلمة (الإجابة)");
+  assert.ok(!dup.errors.some((e) => /يحتاج من/.test(e.message)), "no extra count error for the failed level");
+
+  const sameHint = parseRows([q(2, { word: "الدين", hint: "نفس السؤال" }), q(3, { word: "الحمد", hint: "نفس السؤال" })]);
+  assert.deepEqual(sameHint.errors, []);
+  assert.match(sameHint.warnings[0].message, /نفس السؤال مكرر في صف 2/);
+
+  const twoLevels = parseRows([q(2, { word: "الدين" }), q(3, { level: "2", title: "ثاني", word: "الدين" })]);
+  assert.deepEqual(twoLevels.errors, []);
+  assert.match(twoLevels.warnings[0].message, /موجودة أيضًا في المستوى 1/);
+});
+
+test("every row error names its column", () => {
+  const r = parseRows([
+    row(2, { ...base, stage: "x", word: "الدين", hint: "سؤال", fact: "معلومة." }),
+    row(3, { ...base, kind: "", word: "الدين", hint: "سؤال", fact: "معلومة." }),
+    row(4, { ...base, word: "الدين", hint: "", fact: "معلومة." }),
+  ]);
+  assert.deepEqual(
+    r.errors.map((e) => e.column),
+    ["رقم المرحلة", "نوع المعرفة", "السؤال / التلميح"],
+  );
+  assert.match(r.errors[0].message, /«x»/);
+  assert.match(r.errors[2].message, /فارغ/);
+});

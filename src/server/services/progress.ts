@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import type { Track } from "@/lib/quran/labels";
@@ -129,50 +130,70 @@ export async function submitAttempt(student: { id: string; track: Track }, input
   });
 
   const now = new Date();
-  const existing = await db.progress.findUnique({
-    where: { studentId_levelId: { studentId: student.id, levelId: level.id } },
-  });
+  // When it was played (offline results arrive later): trusted only within the last 30 days.
+  const playedAt = input.playedAt && input.playedAt <= now.getTime() && input.playedAt > now.getTime() - 30 * 86_400_000 ? new Date(input.playedAt) : now;
+  const where = { studentId_levelId: { studentId: student.id, levelId: level.id } };
+  const duplicate = async (): Promise<SubmitResult> => {
+    const p = await db.progress.findUnique({ where });
+    return { ok: true, stars, score, bestStars: p?.stars ?? stars, bestScore: p?.score ?? score, nextLevelId };
+  };
 
-  // A re-sent offline attempt that was already stored: answer without counting it twice.
-  if (existing?.lastAttemptId === input.clientAttemptId) {
-    return { ok: true, stars, score, bestStars: existing.stars, bestScore: existing.score, nextLevelId };
+  // Sent before the attempt log existed (lastAttemptId only remembers the latest one).
+  const existing = await db.progress.findUnique({ where });
+  if (existing?.lastAttemptId === input.clientAttemptId) return duplicate();
+
+  const store = () =>
+    db.$transaction(async (tx) => {
+      // First write: a second copy of this attempt (a re-send, or the same result sent twice at once)
+      // fails here on the primary key and nothing below runs for it.
+      await tx.syncedAttempt.create({ data: { id: input.clientAttemptId, studentId: student.id, levelId: level.id } });
+      const current = await tx.progress.findUnique({ where });
+      const row = await tx.progress.upsert({
+        where,
+        create: {
+          studentId: student.id,
+          levelId: level.id,
+          stars,
+          score,
+          attempts: 1,
+          timeSpent: input.timeSpent,
+          completedAt: playedAt,
+          lastAttemptId: input.clientAttemptId,
+        },
+        update: {
+          stars: Math.max(stars, current?.stars ?? 0),
+          score: Math.max(score, current?.score ?? 0),
+          attempts: { increment: 1 },
+          timeSpent: { increment: input.timeSpent },
+          completedAt: current?.completedAt ?? playedAt,
+          lastAttemptId: input.clientAttemptId,
+        },
+      });
+      // Results synced out of order must not move «last active» backwards.
+      await tx.student.updateMany({ where: { id: student.id, lastActiveAt: { lt: playedAt } }, data: { lastActiveAt: playedAt } });
+      await tx.itemResult.createMany({
+        data: (input.items ?? []).map((i) => ({
+          studentId: student.id,
+          wordId: i.wordId,
+          levelId: level.id,
+          correct: i.mistakes === 0 && i.hints === 0,
+          mistakes: i.mistakes,
+          hintsUsed: i.hints,
+          createdAt: playedAt,
+        })),
+      });
+      return row;
+    });
+
+  let saved: { stars: number; score: number };
+  try {
+    saved = await store();
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e;
+    // Already stored → answer as before. Otherwise another attempt created the progress row at the same moment: retry once.
+    if (await db.syncedAttempt.findUnique({ where: { id: input.clientAttemptId }, select: { id: true } })) return duplicate();
+    saved = await store();
   }
-
-  const [saved] = await db.$transaction([
-    db.progress.upsert({
-      where: { studentId_levelId: { studentId: student.id, levelId: level.id } },
-      create: {
-        studentId: student.id,
-        levelId: level.id,
-        stars,
-        score,
-        attempts: 1,
-        timeSpent: input.timeSpent,
-        completedAt: now,
-        lastAttemptId: input.clientAttemptId,
-      },
-      update: {
-        stars: Math.max(stars, existing?.stars ?? 0),
-        score: Math.max(score, existing?.score ?? 0),
-        attempts: { increment: 1 },
-        timeSpent: { increment: input.timeSpent },
-        completedAt: existing?.completedAt ?? now,
-        lastAttemptId: input.clientAttemptId,
-      },
-    }),
-    db.student.update({ where: { id: student.id }, data: { lastActiveAt: now } }),
-    db.itemResult.createMany({
-      data: (input.items ?? []).map((i) => ({
-        studentId: student.id,
-        wordId: i.wordId,
-        levelId: level.id,
-        correct: i.mistakes === 0 && i.hints === 0,
-        mistakes: i.mistakes,
-        hintsUsed: i.hints,
-        createdAt: now,
-      })),
-    }),
-  ]);
 
   return { ok: true, stars, score, bestStars: saved.stars, bestScore: saved.score, nextLevelId };
 }
