@@ -212,7 +212,7 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
     <div className={`game${flash ? ` is-flash-${flash}` : ""}`}>
       {preview && <div className="preview-banner">وضع المعاينة — لن يُحفظ أي تقدم</div>}
       <div className="game-hud">
-        <Link href={meta.backHref} className="hud-close" aria-label="إغلاق المستوى والعودة إلى الخريطة">
+        <Link href={meta.backHref} prefetch className="hud-close" aria-label="إغلاق المستوى والعودة إلى الخريطة">
           <Icon name="close" size={22} />
         </Link>
         <div className="segments" role="progressbar" aria-valuemin={0} aria-valuemax={words.length} aria-valuenow={solvedCount} aria-label={`حللت ${solvedCount} من ${words.length}`}>
@@ -326,7 +326,7 @@ export function GameShell({ data, preview = false }: { data: GameData; preview?:
               </div>
               <div className="btn-stack">
                 {result.nextLevelId ? (
-                  <Link href={`/play/${result.nextLevelId}`} className="btn btn-gold btn-block btn-lg">
+                  <Link href={`/play/${result.nextLevelId}`} prefetch className="btn btn-gold btn-block btn-lg">
                     المستوى التالي <Icon name="back" />
                   </Link>
                 ) : (

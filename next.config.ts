@@ -28,7 +28,12 @@ const nextConfig: NextConfig = {
   // came later it saved a plain bookmark that opened in Safari instead of the standalone app.
   htmlLimitedBots: /.*/,
   // Excel uploads in the dashboard go through a server action (default limit is 1 MB).
-  experimental: { serverActions: { bodySizeLimit: "6mb" } },
+  experimental: {
+    serverActions: { bodySizeLimit: "6mb" },
+    // Screens already visited (or prefetched) are reused from memory for a while, so switching tabs and going
+    // back is instant. Finishing a level calls router.refresh(), which drops these copies.
+    staleTimes: { dynamic: 180, static: 600 },
+  },
   // Old routes from before the curriculum restructure (cached PWA pages may still link to them).
   async redirects() {
     return [

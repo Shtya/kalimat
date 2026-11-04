@@ -2755,3 +2755,175 @@ a.step-link:active .step-card {
 .steps {
   margin-top: 0;
 }
+
+/* ═══════════ Game screen: exactly one screen tall ═══════════
+   The page never scrolls or bounces while playing: the shell is locked to the visible height (safe areas
+   included) and the wheel takes whatever height is left. A board taller than a small screen scrolls inside
+   .game rather than moving the page. */
+html:has(.kid .game),
+html:has(.kid .game) body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.kid:has(.game) .kid-shell {
+  height: 100dvh;
+  min-height: 0;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-bottom: calc(6px + var(--k-safe-b));
+  overflow: hidden;
+}
+.kid:has(.game) .kid-main,
+.kid:has(.game) .kid-page {
+  min-height: 0;
+}
+.kid .game {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.kid .game::-webkit-scrollbar {
+  display: none;
+}
+.kid .game > * {
+  flex-shrink: 0;
+}
+
+/* ═══════════ Letter wheel ═══════════
+   Tiles sit evenly on one circle (the track) around the exact centre; LetterWheel passes the tile size
+   (--t) and the track radius (--r) in % of the wheel, so any letter count fits. */
+.kid .game .wheel-wrap {
+  flex: 1 1 0;
+  min-height: 150px;
+  margin-top: 0;
+  container-type: size;
+}
+.kid .wheel {
+  container-type: inline-size;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cg fill='none' stroke='%231b4da8' stroke-opacity='.07' stroke-width='1.2'%3E%3Crect x='12' y='12' width='20' height='20'/%3E%3Crect x='12' y='12' width='20' height='20' transform='rotate(45 22 22)'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(circle, #fff 0 38%, #f4f7fe 70%);
+}
+@supports (width: 1cqh) {
+  .kid .game .wheel {
+    width: min(100cqw, 100cqh, 360px);
+  }
+  .kid .wheel .tile {
+    --s: calc(var(--t, 19) * 1cqw);
+  }
+  .kid .wheel-center {
+    width: clamp(44px, 18cqw, 62px);
+    height: clamp(44px, 18cqw, 62px);
+  }
+}
+.kid .wheel .tile {
+  transition:
+    transform 0.14s cubic-bezier(0.3, 1.5, 0.5, 1),
+    box-shadow 0.14s;
+  will-change: transform;
+}
+.kid .wheel .tile.is-hot {
+  animation: k-tile-join 0.24s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes k-tile-join {
+  from {
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+}
+.wheel-track {
+  fill: none;
+  stroke: #e6edfa;
+  stroke-width: calc(var(--t, 19) * 0.78px);
+}
+.wheel-line-glow {
+  stroke: #3471d9;
+  stroke-opacity: 0.16;
+  stroke-width: 8.5px;
+}
+.wheel-line-main {
+  stroke-width: 3.6px;
+  stroke-opacity: 0.92;
+}
+/* the loose end, from the last letter to the finger */
+.wheel-line-live {
+  stroke: #3471d9;
+  stroke-opacity: 0.55;
+  stroke-width: 3.6px;
+}
+.wheel-ripple {
+  fill: none;
+  stroke: #f5b82e;
+  stroke-width: 1.4px;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: k-ripple 0.45s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes k-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wheel-ripple,
+  .kid .wheel .tile.is-hot {
+    animation: none;
+  }
+}
+
+/* Settings: volume slider under the sound switch */
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 14px 18px;
+  border-radius: var(--k-r);
+  background: var(--k-paper);
+  box-shadow: var(--k-shadow);
+  color: var(--k-muted);
+}
+.volume-row input {
+  flex: 1;
+  height: 28px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  /* the bar fills from the start side (right, in Arabic) */
+  direction: rtl;
+}
+.volume-row input::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 99px;
+  background: linear-gradient(to left, var(--k-teal) var(--v), #dbe4f4 var(--v));
+}
+.volume-row input::-moz-range-track {
+  height: 8px;
+  border-radius: 99px;
+  background: linear-gradient(to left, var(--k-teal) var(--v), #dbe4f4 var(--v));
+}
+.volume-row input::-webkit-slider-thumb {
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 3px var(--k-teal),
+    0 3px 6px rgba(14, 35, 80, 0.25);
+}
+.volume-row input::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--k-teal);
+  border-radius: 50%;
+  background: #fff;
+}

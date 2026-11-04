@@ -47,7 +47,7 @@ export function MapNode({
         </span>
       )}
       {unlocked ? (
-        <Link href={`/play/${id}`} className="node-btn" aria-label={label}>
+        <Link href={`/play/${id}`} prefetch className="node-btn" aria-label={label}>
           {face}
         </Link>
       ) : (

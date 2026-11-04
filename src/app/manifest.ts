@@ -18,10 +18,10 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#1b4da8",
     categories: ["education", "games", "kids"],
     icons: [
-      { src: "/icons/180", sizes: "180x180", type: "image/png", purpose: "any" },
-      { src: "/icons/192", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icons/512", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icons/maskable", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/icons/180?v=2", sizes: "180x180", type: "image/png", purpose: "any" },
+      { src: "/icons/192?v=2", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/512?v=2", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/maskable?v=2", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

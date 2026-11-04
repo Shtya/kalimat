@@ -29,7 +29,7 @@ export default async function JourneyPage() {
       </section>
 
       {current && (
-        <Link href={`/play/${current.id}`} className="continue" style={{ "--c": currentStation?.color } as React.CSSProperties}>
+        <Link href={`/play/${current.id}`} prefetch className="continue" style={{ "--c": currentStation?.color } as React.CSSProperties}>
           <span className="continue-text">
             <small>{journey.levels.some((l) => l.completed) ? "أكمل من حيث توقفت" : "أول مستوى في رحلتك"}</small>
             <b>{current.title}</b>
@@ -78,7 +78,7 @@ export default async function JourneyPage() {
           return (
             <li key={st.id} className={`trail-step is-${state}`} data-focus={st.id === focusId ? "" : undefined}>
               {st.unlocked ? (
-                <Link href={`/stations/${st.id}`} className="trail-link" style={{ "--c": st.color } as React.CSSProperties}>
+                <Link href={`/stations/${st.id}`} prefetch className="trail-link" style={{ "--c": st.color } as React.CSSProperties}>
                   {body}
                 </Link>
               ) : (

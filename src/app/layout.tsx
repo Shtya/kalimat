@@ -19,7 +19,8 @@ export const metadata: Metadata = {
   // Next 15 only emits the new `mobile-web-app-capable`; iOS before 16.4 needs the apple- one to open standalone.
   other: { "apple-mobile-web-app-capable": "yes" },
   formatDetection: { telephone: false },
-  icons: { icon: "/icons/192", apple: "/icons/180" },
+  // ?v= changes with the icon design, so phones and the service worker fetch the new one
+  icons: { icon: "/icons/192?v=2", apple: "/icons/180?v=2" },
 };
 
 export const viewport: Viewport = {

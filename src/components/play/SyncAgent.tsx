@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { flushQueue, forgetStudent, pendingCount, rememberStudent, storedStudentId } from "@/lib/offline-queue";
+import { preloadSounds } from "@/lib/sound";
 
 const WARM_KEY = "offlineWarm";
 const WARM_EVERY = 30 * 60_000;
@@ -45,6 +46,9 @@ export function SyncAgent({ anonymousId, progressKey }: { anonymousId: string | 
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
+    // Decode every game sound once the app is idle, so the first tap and the first «أحسنت» are instant.
+    const idle = window.requestIdleCallback ?? ((fn: () => void) => window.setTimeout(fn, 1200));
+    idle(() => preloadSounds());
   }, []);
 
   useEffect(() => {

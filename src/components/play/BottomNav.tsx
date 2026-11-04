@@ -24,7 +24,7 @@ export function BottomNav({ playHref }: { playHref: string }) {
   const tab = (item: Item) => {
     const active = item.match(path);
     return (
-      <Link href={item.href} className={`bn-item${active ? " is-active" : ""}`} aria-current={active ? "page" : undefined} onClick={() => buzz(8)}>
+      <Link href={item.href} prefetch className={`bn-item${active ? " is-active" : ""}`} aria-current={active ? "page" : undefined} onClick={() => buzz(8)}>
         <span className="bn-icon">
           <Icon name={item.icon} size={24} />
         </span>
@@ -36,7 +36,7 @@ export function BottomNav({ playHref }: { playHref: string }) {
   return (
     <nav className="bottom-nav" aria-label="التنقل الرئيسي">
       {tab(JOURNEY)}
-      <Link href={playHref} className="bn-play" aria-label="العب المستوى التالي" onClick={() => buzz(12)}>
+      <Link href={playHref} prefetch className="bn-play" aria-label="العب المستوى التالي" onClick={() => buzz(12)}>
         <span className="bn-play-btn">
           <Icon name="play" size={30} filled />
         </span>
@@ -61,7 +61,7 @@ export function AccountLink({ initial }: { initial: string }) {
   const path = usePathname();
   const active = path.startsWith("/settings");
   return (
-    <Link href="/settings" className={`avatar-btn${active ? " is-active" : ""}`} aria-label="حسابي" aria-current={active ? "page" : undefined}>
+    <Link href="/settings" prefetch className={`avatar-btn${active ? " is-active" : ""}`} aria-label="حسابي" aria-current={active ? "page" : undefined}>
       {initial}
     </Link>
   );

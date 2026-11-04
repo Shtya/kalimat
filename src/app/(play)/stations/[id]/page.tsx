@@ -76,7 +76,7 @@ export default async function StationPage({ params }: { params: Promise<{ id: st
           return (
             <li key={stage.id} className={`step is-${state}`} data-focus={stage.id === focusId ? "" : undefined}>
               {playable ? (
-                <Link href={`/stages/${stage.id}`} className="step-link">
+                <Link href={`/stages/${stage.id}`} prefetch className="step-link">
                   {body}
                 </Link>
               ) : (

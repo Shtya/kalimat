@@ -64,7 +64,7 @@ export function MapHead({
 }) {
   return (
     <header className="map-head">
-      <Link href={back} className="mh-back" aria-label={`رجوع إلى ${backLabel}`}>
+      <Link href={back} prefetch className="mh-back" aria-label={`رجوع إلى ${backLabel}`}>
         <Icon name="forward" size={18} />
       </Link>
       <div className="mh-text">

@@ -5,6 +5,8 @@
 // play instantly, overlap freely and can be pitched (the letter taps rise as a word grows).
 
 let ctx: AudioContext | null = null;
+/** Everything plays through this, so the volume setting applies to every sound at once. */
+let master: GainNode | null = null;
 
 /** Said after each solved word. */
 const PRAISE = ["mashallah", "ahsant", "rae3", "mumtaz", "allahuakbar", "barakallah"];
@@ -40,17 +42,46 @@ export function preloadSounds() {
   FX.forEach((id) => void load(id, "fx"));
 }
 
-/** Plays one clip; silent if it isn't decoded yet. */
-function clip(id: string, { rate = 1, gain = 1, at = 0 } = {}) {
+type Voice = { src: AudioBufferSourceNode; g: GainNode };
+
+/** Plays one clip; silent if it isn't decoded yet. `dur` cuts it short with a soft fade-out. */
+function clip(id: string, { rate = 1, gain = 1, at = 0, dur = 0 } = {}): Voice | null {
   const buf = clips.get(id);
-  if (!ctx || !buf) return;
+  if (!ctx || !master || !buf) return null;
   const src = ctx.createBufferSource();
   const g = ctx.createGain();
   src.buffer = buf;
   src.playbackRate.value = rate;
-  g.gain.value = gain;
-  src.connect(g).connect(ctx.destination);
-  src.start(ctx.currentTime + at);
+  const t = ctx.currentTime + at;
+  g.gain.setValueAtTime(gain, t);
+  if (dur) {
+    g.gain.setValueAtTime(gain, t + dur * 0.6);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    src.stop(t + dur + 0.02);
+  }
+  src.connect(g).connect(master);
+  src.start(t);
+  return { src, g };
+}
+
+/** Fades a playing clip out in a few ms (no click), then stops it. */
+function fadeOut(v: Voice | null) {
+  if (!v || !ctx) return;
+  const t = ctx.currentTime;
+  try {
+    v.g.gain.cancelScheduledValues(t);
+    v.g.gain.setValueAtTime(v.g.gain.value, t);
+    v.g.gain.linearRampToValueAtTime(0.0001, t + 0.025);
+    v.src.stop(t + 0.03);
+  } catch {}
+}
+
+/** Letter taps never pile up: a new tap fades the previous one out. */
+let lastTap: Voice | null = null;
+function tap(step: number) {
+  fadeOut(lastTap);
+  // ~35% of the clip's level, and only its first ~150 ms: a soft, short click that climbs as the word grows.
+  lastTap = clip("tap", { rate: Math.pow(2, Math.min(step, 12) / 12), gain: 0.28, dur: 0.15 });
 }
 
 const lastSaid: Record<string, string> = {};
@@ -82,6 +113,24 @@ function soon(id: string, ms: number) {
 }
 
 const KEY = "sound";
+const VOLUME_KEY = "soundVolume";
+
+/** Volume for every sound, 0–1 (set in «حسابي»). */
+export function getVolume(): number {
+  try {
+    const v = Number(localStorage.getItem(VOLUME_KEY) ?? "0.8");
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8;
+  } catch {
+    return 0.8;
+  }
+}
+
+export function setVolume(v: number) {
+  try {
+    localStorage.setItem(VOLUME_KEY, String(v));
+  } catch {}
+  if (master && ctx) master.gain.setTargetAtTime(v, ctx.currentTime, 0.02);
+}
 
 export function isMuted(): boolean {
   try {
@@ -101,7 +150,12 @@ export function setMuted(muted: boolean) {
 function play(fn: () => void) {
   if (isMuted() || typeof window === "undefined") return;
   try {
-    ctx ??= new AudioContext();
+    if (!ctx) {
+      ctx = new AudioContext();
+      master = ctx.createGain();
+      master.gain.value = getVolume();
+      master.connect(ctx.destination);
+    }
     if (ctx.state === "suspended") void ctx.resume();
     preloadSounds();
     fn();
@@ -110,7 +164,7 @@ function play(fn: () => void) {
 
 export const sfx = {
   /** Letter / cell tap; each step raises the pitch a semitone, so building a word climbs. */
-  tap: (step = 0) => play(() => clip("tap", { rate: Math.pow(2, Math.min(step, 12) / 12), gain: 0.8 })),
+  tap: (step = 0) => play(() => tap(step)),
   correct: () => play(() => say(PRAISE)),
   wrong: () => play(() => clip("wrong")),
   hint: () => play(() => clip("hint", { gain: 0.9 })),

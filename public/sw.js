@@ -2,7 +2,7 @@
 // network-first for pages (the cached copy answers when offline, or when the network is too slow), never caches the API.
 // While online the app also asks it to download the pages around the student's current level
 // (plus the scripts, styles and fonts they use), so the game keeps working with no internet.
-const VERSION = "v6";
+const VERSION = "v7";
 const STATIC = `static-${VERSION}`;
 const PAGES = `pages-${VERSION}`;
 /** Every game sound (~340 KB), so the game is never silent offline. Must match src/lib/sound.ts. */
@@ -10,7 +10,7 @@ const SOUNDS = [
   ...["mashallah", "ahsant", "rae3", "mumtaz", "allahuakbar", "barakallah", "win1", "win2", "win3", "bismillah", "unlock", "station"].map((id) => `/sounds/voice/${id}.mp3`),
   ...["tap", "wrong", "hint", "unlock-fx"].map((id) => `/sounds/fx/${id}.mp3`),
 ];
-const PRECACHE = ["/offline", "/manifest.webmanifest", "/icons/192", "/icons/512", ...SOUNDS];
+const PRECACHE = ["/offline", "/manifest.webmanifest", "/icons/192?v=2", "/icons/512?v=2", ...SOUNDS];
 /** A page load waits this long for the network before showing the cached copy (it still updates in the background). */
 const NETWORK_TIMEOUT = 4000;
 /** Must match PREFETCH_HEADER in src/server/services/offline.ts. */
